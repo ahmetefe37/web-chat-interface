@@ -1,0 +1,25 @@
+{
+  "name": "web-chat-interface",
+  "version": "1.0.0",
+  "description": "Ollama Web Chat Interface",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "ollama",
+    "llama",
+    "chat",
+    "ai",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
+

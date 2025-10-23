@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Web Chat Interface</title>
+        <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+        <!-- Responsive CSS - Device Specific -->
+        <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/desktop.css" />
+        <link rel="stylesheet" href="css/tablet.css" />
+        <link rel="stylesheet" href="css/mobile.css" />
+        <!-- Marked.js for Markdown parsing -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <!-- Highlight.js for syntax highlighting -->
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo-container">
+                        <span class="logo-full">Web Chat Interface</span>
+                        <span class="logo-mini">WCI</span>
+                    </div>
+                </div>
+                <button class="new-chat-btn" id="newChatBtn">
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span class="btn-text">New Chat</span>
+                </button>
+                <div class="chat-history" id="chatHistory">
+                    <!-- Chat history items will be added here -->
+                </div>
+                <div class="sidebar-footer">
+                    <div class="settings">
+                        <button class="settings-btn history-btn" id="historyBtn" title="Saved Chats">
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span class="btn-text">Saved Chats</span>
+                        </button>
+                        <button class="settings-btn" id="settingsBtn" title="Settings">
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M12 1v6m0 6v6m5.657-15.657l-4.243 4.243m-2.828 2.828l-4.243 4.243m15.556 0l-4.243-4.243m-2.828-2.828L1.343 5.657"></path>
+                            </svg>
+                            <span class="btn-text">Settings</span>
+                        </button>
+                    </div>
+                    <button class="toggle-sidebar-btn" id="toggleSidebar" title="Toggle Sidebar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Header (only visible on mobile) -->
+            <div class="mobile-header">
+                <div class="mobile-logo">WCI</div>
+                <button class="mobile-new-chat-btn" id="mobileNewChatBtn" title="New Chat">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <div class="mobile-actions">
+                    <button class="mobile-action-btn" id="mobileHistoryBtn" title="Saved Chats">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </button>
+                    <button class="mobile-action-btn" id="mobileSettingsBtn" title="Settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6m5.657-15.657l-4.243 4.243m-2.828 2.828l-4.243 4.243m15.556 0l-4.243-4.243m-2.828-2.828L1.343 5.657"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="main-content">
+                <div class="chat-container" id="chatContainer">
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <h1>WEB CHAT INTERFACE</h1>
+                        <p>Start a conversation with your local AI model</p>
+                    </div>
+                    <div class="messages" id="messagesContainer">
+                        <!-- Messages will be added here -->
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-container">
+                        <div class="input-actions">
+                            <button class="action-btn" id="attachFileBtn" title="Attach File">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" id="webSearchBtn" title="Web Search">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                    <path d="M11 3a8 8 0 0 0 0 16"></path>
+                                    <path d="M3 11h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <textarea
+                            id="messageInput"
+                            placeholder="Send a message..."
+                            rows="1"
+                            maxlength="4000"
+                        ></textarea>
+                        <button class="send-btn" id="sendBtn">
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon
+                                    points="22 2 15 22 11 13 2 9 22 2"
+                                ></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <span class="model-info" id="modelInfo">Ollama</span>
+                    </div>
+                </div>
+                
+                <!-- Hidden file input -->
+                <input type="file" id="fileInput" style="display: none;" multiple accept="image/*,.pdf,.txt,.doc,.docx" />
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn" id="closeModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label for="providerSelect">AI Provider</label>
+                        <select id="providerSelect">
+                            <option value="ollama">Ollama (Local)</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="openrouter">OpenRouter</option>
+                        </select>
+                    </div>
+
+                    <!-- Ollama Settings -->
+                    <div class="provider-settings" id="ollamaSettings">
+                        <div class="setting-group">
+                            <label for="ollamaUrl">Ollama URL</label>
+                            <input
+                                type="text"
+                                id="ollamaUrl"
+                                placeholder="http://localhost:5000"
+                                value="http://localhost:5000"
+                            />
+                        </div>
+                        <div class="setting-group">
+                            <label for="modelName">Model Name</label>
+                            <div class="model-select-group">
+                                <select id="modelName">
+                                    <option value="">Loading models...</option>
+                                </select>
+                                <button
+                                    class="refresh-models-btn"
+                                    id="refreshModels"
+                                    type="button"
+                                    title="Refresh Models"
+                                >
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path
+                                            d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+                                        ></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini Settings -->
+                    <div class="provider-settings" id="geminiSettings" style="display: none;">
+                        <div class="setting-group">
+                            <label for="geminiApiKey">Gemini API Key</label>
+                            <input
+                                type="password"
+                                id="geminiApiKey"
+                                placeholder="Enter your Gemini API key"
+                            />
+                            <small class="setting-hint">Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+                        </div>
+                        <div class="setting-group">
+                            <label for="geminiModel">Model</label>
+                            <select id="geminiModel">
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- OpenRouter Settings -->
+                    <div class="provider-settings" id="openrouterSettings" style="display: none;">
+                        <div class="setting-group">
+                            <label for="openrouterApiKey">OpenRouter API Key</label>
+                            <input
+                                type="password"
+                                id="openrouterApiKey"
+                                placeholder="Enter your OpenRouter API key"
+                            />
+                            <small class="setting-hint">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></small>
+                        </div>
+                        <div class="setting-group">
+                            <label for="openrouterModel">Model</label>
+                            <input
+                                type="text"
+                                id="openrouterModel"
+                                placeholder="e.g., anthropic/claude-3-opus"
+                                value="anthropic/claude-3-opus"
+                            />
+                            <small class="setting-hint">Browse models at <a href="https://openrouter.ai/models" target="_blank">OpenRouter Models</a></small>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="temperature">Temperature</label>
+                        <input
+                            type="range"
+                            id="temperature"
+                            min="0"
+                            max="1"
+                            step="0.1"
+                            value="0.7"
+                        />
+                        <span id="tempValue">0.7</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="save-btn" id="saveSettings">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTML Preview Modal -->
+        <div class="modal" id="previewModal">
+            <div class="modal-content preview-modal-content">
+                <div class="modal-header">
+                    <h2>HTML Preview</h2>
+                    <div class="preview-actions">
+                        <button class="preview-refresh-btn" id="refreshPreview" title="Refresh">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </button>
+                        <button class="close-btn" id="closePreviewModal">&times;</button>
+                    </div>
+                </div>
+                <div class="modal-body preview-body">
+                    <iframe id="previewFrame" sandbox="allow-scripts"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved Chats Modal -->
+        <div class="modal" id="historyModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Saved Chats</h2>
+                    <button class="close-btn" id="closeHistoryModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="saved-chats-container" id="savedChatsContainer">
+                        <div class="loading-saved-chats">Loading saved chats...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modular JavaScript -->
+        <script type="module" src="js/main.js"></script>
+    </body>
+</html>

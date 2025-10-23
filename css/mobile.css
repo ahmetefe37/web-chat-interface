@@ -1,0 +1,387 @@
+/* ==========================================
+   MOBILE STYLES - Mobile (max-width: 767px)
+   ========================================== */
+
+@media (max-width: 767px) {
+
+/* Container - Stack vertically on mobile */
+.container {
+    flex-direction: column;
+}
+
+/* Sidebar - Full width overlay on mobile */
+.sidebar {
+    position: fixed;
+    left: -100%;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background-color: var(--bg-sidebar);
+    z-index: 999;
+    transition: left var(--transition-slow);
+    box-shadow: var(--shadow);
+}
+
+.sidebar.open {
+    left: 0;
+}
+
+/* Sidebar collapsed state doesn't apply on mobile */
+.sidebar.collapsed {
+    width: 280px;
+}
+
+.sidebar.collapsed .btn-text,
+.sidebar.collapsed .chat-history,
+.sidebar.collapsed .logo-full {
+    display: block;
+}
+
+/* Mobile Header - WCI Logo, New Chat, Actions */
+.mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    z-index: 998;
+    gap: var(--spacing-md);
+}
+
+.mobile-logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-color);
+    letter-spacing: 1px;
+}
+
+.mobile-new-chat-btn {
+    flex: 1;
+    background-color: var(--accent-color);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.mobile-new-chat-btn:active {
+    background-color: var(--accent-hover);
+    transform: scale(0.95);
+}
+
+.mobile-new-chat-btn svg {
+    flex-shrink: 0;
+}
+
+.mobile-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.mobile-action-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-white);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    aspect-ratio: 1;
+}
+
+.mobile-action-btn:active {
+    background-color: var(--bg-hover);
+    border-color: var(--accent-color);
+}
+
+.mobile-action-btn svg {
+    flex-shrink: 0;
+}
+
+.menu-toggle {
+    background: none;
+    border: none;
+    color: var(--text-white);
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-header h1 {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+/* Overlay for sidebar */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* Main content - Full width on mobile */
+.main-content {
+    flex: 1;
+    width: 100%;
+}
+
+/* Messages - Full width with padding */
+.messages {
+    max-width: 100%;
+    padding: var(--spacing-md);
+}
+
+.message {
+    margin-bottom: var(--spacing-lg);
+}
+
+.message.user .message-content {
+    max-width: 90%;
+}
+
+.message.assistant .message-content {
+    max-width: 100%;
+}
+
+/* Welcome screen - Smaller on mobile */
+.welcome-screen {
+    padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.welcome-screen h1 {
+    font-size: 24px;
+}
+
+.welcome-screen p {
+    font-size: 14px;
+}
+
+/* Input container - Stack vertically on small screens */
+.input-container {
+    padding: var(--spacing-sm);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.input-actions {
+    order: -1;
+    width: 100%;
+    justify-content: space-between;
+}
+
+#messageInput {
+    width: 100%;
+    min-height: 60px;
+    font-size: 16px; /* Prevent zoom on iOS */
+}
+
+#sendBtn {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 12px;
+}
+
+/* Footer - Hide on mobile for more space */
+.footer {
+    display: none;
+}
+
+/* Modals - Full screen on mobile */
+.modal-content {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+}
+
+.modal-header {
+    padding: var(--spacing-md);
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-secondary);
+    z-index: 10;
+}
+
+.modal-header h2 {
+    font-size: 18px;
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: var(--spacing-md);
+    position: sticky;
+    bottom: 0;
+    background-color: var(--bg-secondary);
+}
+
+/* Settings - Stack inputs */
+.setting-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.setting-group label {
+    font-size: 14px;
+}
+
+.setting-group input,
+.setting-group select {
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 12px;
+}
+
+.model-select-group {
+    flex-direction: column;
+}
+
+.model-select-group > div {
+    width: 100%;
+}
+
+.model-select-group button {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
+
+#saveSettings {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+}
+
+/* Saved Chats - Single column on mobile */
+.saved-chats-container {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+    max-height: calc(100vh - 200px);
+}
+
+.saved-chat-card {
+    padding: var(--spacing-md);
+}
+
+.saved-chat-header h3 {
+    font-size: 16px;
+}
+
+.saved-chat-meta {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.meta-item {
+    font-size: 12px;
+}
+
+/* Preview - Full screen */
+.preview-container {
+    height: calc(100vh - 200px);
+}
+
+/* Code blocks - Scroll horizontally */
+pre {
+    font-size: 12px;
+    padding: var(--spacing-sm);
+    overflow-x: auto;
+}
+
+code {
+    font-size: 11px;
+}
+
+.copy-btn,
+.preview-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* Sidebar buttons - Full width */
+.new-chat-btn,
+.settings-btn,
+.history-btn {
+    font-size: 14px;
+    padding: 12px;
+}
+
+.sidebar-header {
+    padding: var(--spacing-md);
+}
+
+.sidebar-footer {
+    padding: var(--spacing-md);
+}
+
+/* Chat history */
+.chat-history {
+    padding: var(--spacing-sm);
+}
+
+.chat-history-item {
+    padding: 12px;
+    font-size: 14px;
+}
+
+/* Typing indicator - Smaller */
+.typing-indicator {
+    padding: var(--spacing-sm);
+}
+
+.typing-indicator span {
+    width: 6px;
+    height: 6px;
+}
+
+/* Provider settings */
+.provider-settings {
+    padding-left: var(--spacing-sm);
+}
+
+/* Hide toggle sidebar button on mobile */
+.toggle-sidebar-btn {
+    display: none;
+}
+
+/* Touch-friendly spacing */
+button,
+a,
+.chat-history-item {
+    min-height: 44px; /* iOS recommended touch target */
+}
+
+}
+

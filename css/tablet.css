@@ -1,0 +1,167 @@
+/* ==========================================
+   TABLET STYLES - Tablet (768px - 1023px)
+   ========================================== */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+
+/* Mobile Header - Hidden on tablet */
+.mobile-header {
+    display: none;
+}
+
+/* Sidebar - Narrower on tablets */
+.sidebar {
+    width: 205px;
+    background-color: var(--bg-sidebar);
+    color: var(--text-white);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    transition: width var(--transition-slow);
+}
+
+.sidebar.collapsed {
+    width: 60px;
+}
+
+.sidebar-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+.logo-full {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.sidebar.collapsed .logo-full {
+    display: none;
+}
+
+.sidebar.collapsed .btn-text,
+.sidebar.collapsed .chat-history {
+    display: none;
+}
+
+.sidebar.collapsed .logo-mini {
+    display: block;
+}
+
+.sidebar:not(.collapsed) .logo-mini {
+    display: none;
+}
+
+/* Buttons - Smaller on tablet */
+.new-chat-btn,
+.settings-btn,
+.history-btn {
+    padding: 10px;
+    font-size: 13px;
+}
+
+/* Collapsed state - Square buttons */
+.sidebar.collapsed .new-chat-btn {
+    margin: var(--spacing-sm);
+    padding: 10px;
+    justify-content: center;
+    aspect-ratio: 1;
+}
+
+.sidebar.collapsed .settings-btn,
+.sidebar.collapsed .history-btn {
+    justify-content: center;
+    padding: 10px;
+    aspect-ratio: 1;
+}
+
+.sidebar.collapsed .toggle-sidebar-btn {
+    padding: 10px;
+}
+
+/* Ensure SVGs don't shrink */
+.new-chat-btn svg,
+.settings-btn svg,
+.history-btn svg,
+.toggle-sidebar-btn svg {
+    flex-shrink: 0;
+}
+
+/* Messages - Wider on tablet */
+.messages {
+    max-width: 700px;
+    padding: var(--spacing-md);
+}
+
+.message.user .message-content {
+    max-width: 80%;
+}
+
+/* Input - Slightly smaller */
+#messageInput {
+    min-height: 45px;
+    font-size: 13px;
+}
+
+#sendBtn {
+    padding: 10px 20px;
+    font-size: 13px;
+}
+
+/* Modals - Slightly larger on tablet */
+.modal-content {
+    max-width: 600px;
+    width: 92%;
+}
+
+/* Settings */
+.setting-group {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Saved Chats - 2 columns on tablet */
+.saved-chats-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+}
+
+/* Welcome screen - Smaller text */
+.welcome-screen h1 {
+    font-size: 32px;
+}
+
+.welcome-screen p {
+    font-size: 15px;
+}
+
+/* Code blocks - Smaller font */
+code {
+    font-size: 12px;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+    padding: var(--spacing-md);
+}
+
+.history-btn {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Input container */
+.input-container {
+    padding: var(--spacing-md);
+}
+
+/* Preview container - Slightly smaller */
+.preview-container {
+    height: 60vh;
+}
+
+}
+
