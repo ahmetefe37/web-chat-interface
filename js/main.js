@@ -69,6 +69,7 @@ const elements = {
   historyModal: document.getElementById("historyModal"),
   closeHistoryModalBtn: document.getElementById("closeHistoryModal"),
   savedChatsContainer: document.getElementById("savedChatsContainer"),
+  clearAllChatsBtn: document.getElementById("clearAllChatsBtn"),
   
   // Preview modal
   previewModal: document.getElementById("previewModal"),
@@ -381,6 +382,52 @@ elements.closeHistoryModalBtn.addEventListener("click", () => {
 elements.historyModal.addEventListener("click", (e) => {
   if (e.target === elements.historyModal) {
     elements.historyModal.classList.remove("active");
+  }
+});
+
+// Clear all chats
+elements.clearAllChatsBtn.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to delete ALL saved chats? This action cannot be undone.")) {
+    return;
+  }
+  
+  try {
+    // Get all saved chats from server
+    const serverUrl = `${window.location.protocol}//${window.location.host}`;
+    const response = await fetch(`${serverUrl}/api/chats/list`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch chats');
+    }
+    
+    const data = await response.json();
+    const chats = data.chats || [];
+    
+    // Delete each chat from server
+    for (const chat of chats) {
+      await fetch(`${serverUrl}/api/chats/delete/${chat.id}`, {
+        method: 'DELETE'
+      });
+    }
+    
+    // Clear localStorage
+    localStorage.removeItem("llamaChats");
+    localStorage.removeItem("llamaCurrentChatId");
+    
+    // Reset app state
+    setAllChats({});
+    setCurrentChatId(null);
+    startNewChat();
+    clearMessagesUI();
+    updateChatHistoryUI();
+    
+    // Refresh saved chats modal
+    await displaySavedChats();
+    
+    alert("All chats have been deleted successfully!");
+  } catch (error) {
+    console.error("Error clearing chats:", error);
+    alert("Failed to clear all chats. Please try again.");
   }
 });
 

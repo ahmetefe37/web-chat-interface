@@ -2,6 +2,8 @@
 
 Modern, responsive web chat interface for multiple AI providers including Ollama, Google Gemini, and OpenRouter.
 
+![Web-Chat-Interface](./static/images/views/desktop/WCI_desktop.png)
+
 ## ✨ Features
 
 - 💬 **Multi-Provider Support** - Chat with Ollama (local), Google Gemini, or OpenRouter
@@ -25,37 +27,52 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
    - Google Gemini: [Get API Key](https://makersuite.google.com/app/apikey)
    - OpenRouter: [Get API Key](https://openrouter.ai/keys)
 
-### Installation
-
+### Clone from GitHub
+Clone the project fies from github.com
 ```bash
-# Clone or download the repository
-cd Llama32_Web
+git clone https://github.com/ahmetefe37/web-chat-interface.git
+```
 
-# Install dependencies
+### Installation
+Set the directory
+```bash
+cd web-chat-interface
+```
+
+### Install dependencies
+Install all dependencies for the project
+```bash
 npm install
+```
 
-# Start the server
+
+### Start the server
+```bash
 npm start
 ```
 
 The server will start at `http://localhost:5000`
 
 ### For Ollama Users
+Start Ollama (in separate terminal)
+```bash
+ollama serve
+```
+
+Pull a model
+```bash
+ollama pull llama3.2
+```
+
+or
 
 ```bash
-# Start Ollama (in separate terminal)
-ollama serve
-
-# Pull a model
-ollama pull llama3.2
-# or
 ollama pull mistral
 ```
 
 ### Development Mode
-
+Auto-restart on file changes
 ```bash
-# Auto-restart on file changes
 npm run dev
 ```
 
@@ -94,22 +111,37 @@ npm run dev
 3. Code copied to clipboard
 
 ### Responsive Design
+---
+#### Desktop Preview
+---
+![Desktop-View](./static/images/views/desktop/WCI_with_prompt_desktop.png)
 
-- **Desktop**: Full sidebar with chat history
-- **Tablet**: Collapsible sidebar (toggle button)
-- **Mobile**: Top header with quick actions
+---
+#### Tablet Preview
+---
+![Tablet-View](./static/images/views/tablet/WCI_with_prompt_tablet.png)
+
+---
+#### Mobie Preview
+---
+![Mobile-View](./static/images/views/mobile/WCI_with_prompt_mobile.png)
+
 
 ## 📁 Project Structure
 
 ```
-Llama32_Web/
+web-chat-interface/
 ├── index.html          # Main HTML file
-├── favicon.svg         # App icon (WCI logo)
 ├── server.js           # Express.js backend
 ├── package.json        # Node.js dependencies
 ├── .gitignore          # Git ignore rules
 ├── README.md           # Documentation
 ├── cache/              # Saved chats (git-ignored)
+├── static/
+│   ├── icons
+│       ├── favicon.svg # App icon (WCI logo)
+│   └── iamges
+│       ├── ...
 ├── css/                # Modular CSS
 │   ├── base.css        # CSS variables & resets
 │   ├── desktop.css     # Desktop styles (default)
@@ -134,6 +166,7 @@ Llama32_Web/
 Edit `server.js`:
 ```javascript
 const PORT = 5000;                              // Server port
+
 const OLLAMA_URL = 'http://127.0.0.1:11434';   // Ollama API URL
 ```
 
