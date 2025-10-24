@@ -37,6 +37,25 @@
     display: block;
 }
 
+/* Logo styling for mobile */
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.logo-full {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    max-height: 35px;
+    object-fit: contain;
+}
+
+.logo-mini {
+    display: none;
+}
+
 /* Mobile Header - WCI Logo, New Chat, Actions */
 .mobile-header {
     display: flex;
@@ -51,10 +70,9 @@
 }
 
 .mobile-logo {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent-color);
-    letter-spacing: 1px;
+    height: 35px;
+    width: auto;
+    object-fit: contain;
 }
 
 .mobile-new-chat-btn {

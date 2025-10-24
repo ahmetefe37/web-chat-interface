@@ -34,10 +34,27 @@
     gap: var(--spacing-sm);
 }
 
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
 .logo-full {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--accent-color);
+    display: block;
+    max-width: 100%;
+    height: auto;
+    max-height: 55px;
+    object-fit: contain;
+}
+
+.logo-mini {
+    display: none;
+    max-width: 100%;
+    height: auto;
+    max-height: 40px;
+    object-fit: contain;
+    margin: 0 auto;
 }
 
 .sidebar.collapsed .logo-full {
@@ -55,6 +72,10 @@
 
 .sidebar:not(.collapsed) .logo-mini {
     display: none;
+}
+
+.sidebar.collapsed .logo-container {
+    justify-content: center;
 }
 
 /* Buttons - Smaller on tablet */

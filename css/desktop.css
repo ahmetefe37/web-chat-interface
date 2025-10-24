@@ -41,6 +41,10 @@
     flex-direction: column;
 }
 
+.sidebar.collapsed .logo-container {
+    justify-content: center;
+}
+
 .sidebar-header {
     padding: var(--spacing-lg);
     border-bottom: 1px solid var(--border-color);
@@ -54,23 +58,26 @@
 .logo-container {
     flex: 1;
     text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .logo-full {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent-color);
     display: block;
-    letter-spacing: 1px;
+    max-width: 100%;
+    height: auto;
+    max-height: 55px;
+    object-fit: contain;
 }
 
 .logo-mini {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--accent-color);
     display: none;
-    letter-spacing: 2px;
-    text-align: center;
+    max-width: 100%;
+    height: auto;
+    max-height: 50px;
+    object-fit: contain;
+    margin: 0 auto;
 }
 
 .toggle-sidebar-btn {
