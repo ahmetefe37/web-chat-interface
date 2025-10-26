@@ -45,17 +45,17 @@ export function startNewChat() {
   return currentChatId;
 }
 
-// Add message to chat with optional image
-export function addMessageToChat(role, content, imageUrl = null) {
+// Add message to chat with optional file (image or document)
+export function addMessageToChat(role, content, fileData = null) {
   const message = {
     role: role,
     content: content,
     timestamp: new Date().toISOString(),
   };
   
-  // Add image URL if provided
-  if (imageUrl) {
-    message.imageUrl = imageUrl;
+  // Add file data if provided
+  if (fileData) {
+    message.fileData = fileData;
   }
   
   chatHistory.push(message);
@@ -65,7 +65,8 @@ export function addMessageToChat(role, content, imageUrl = null) {
     
     // Update title from first user message
     if (role === "user" && allChats[currentChatId].messages.length === 1) {
-      allChats[currentChatId].title = content.substring(0, 50) + (content.length > 50 ? "..." : "");
+      const titleText = content || (fileData ? `[${fileData.type}] ${fileData.originalName}` : 'New Chat');
+      allChats[currentChatId].title = titleText.substring(0, 50) + (titleText.length > 50 ? "..." : "");
     }
   }
   

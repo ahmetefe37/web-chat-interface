@@ -5,6 +5,13 @@ import { dirname, join } from 'path';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import multer from 'multer';
+import { createRequire } from 'module';
+
+// pdf-parse is CommonJS, need to use require
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
+
+console.log('pdf-parse loaded:', typeof pdfParse);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,14 +40,16 @@ const storage = multer.diskStorage({
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = file.originalname.split('.').pop();
-        cb(null, `image-${uniqueSuffix}.${ext}`);
+        const prefix = file.mimetype.startsWith('image/') ? 'image' : 'document';
+        cb(null, `${prefix}-${uniqueSuffix}.${ext}`);
     }
 });
 
-const upload = multer({
+// Separate upload handlers for images and documents
+const uploadImage = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fileSize: 50 * 1024 * 1024, // 50MB limit
     },
     fileFilter: (req, file, cb) => {
         // Accept images only
@@ -48,6 +57,41 @@ const upload = multer({
             return cb(new Error('Only image files are allowed!'), false);
         }
         cb(null, true);
+    }
+});
+
+const uploadDocument = multer({
+    storage: storage,
+    limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        console.log('Document upload - File mimetype:', file.mimetype);
+        console.log('Document upload - File originalname:', file.originalname);
+        
+        // Accept text-based documents
+        const allowedTypes = [
+            'text/plain',
+            'text/csv',
+            'text/markdown',
+            'application/json',
+            'application/pdf',
+            'text/x-markdown'
+        ];
+        
+        const allowedExtensions = ['.txt', '.csv', '.md', '.json', '.pdf'];
+        const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+        
+        console.log('Document upload - Extension:', ext);
+        console.log('Document upload - Allowed:', allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext));
+        
+        if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+            cb(null, true);
+        } else {
+            const error = new Error(`File type not allowed. Mimetype: ${file.mimetype}, Extension: ${ext}`);
+            console.error('Document upload rejected:', error.message);
+            cb(error, false);
+        }
     }
 });
 
@@ -70,7 +114,7 @@ app.get('/:path', (req, res) => {
     res.sendFile(join(__dirname, req.params.path));
 });
 
-// Ollama API - Generate
+// Ollama API - Generate (with streaming support)
 app.post('/api/generate', async (req, res) => {
     try {
         const response = await fetch(`${OLLAMA_URL}/api/generate`, {
@@ -86,8 +130,32 @@ app.post('/api/generate', async (req, res) => {
             return res.status(response.status).json({ error: errorText });
         }
 
-        const data = await response.json();
-        res.json(data);
+        // If streaming is requested, forward the stream
+        if (req.body.stream) {
+            res.setHeader('Content-Type', 'application/x-ndjson');
+            res.setHeader('Transfer-Encoding', 'chunked');
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    res.write(chunk);
+                }
+                res.end();
+            } catch (streamError) {
+                console.error('Streaming error:', streamError);
+                res.end();
+            }
+        } else {
+            // Non-streaming response
+            const data = await response.json();
+            res.json(data);
+        }
     } catch (error) {
         console.error('Generate error:', error);
         res.status(500).json({ error: error.message });
@@ -137,7 +205,7 @@ app.get('/api/tags', async (req, res) => {
 });
 
 // Upload image endpoint
-app.post('/api/upload', upload.single('image'), async (req, res) => {
+app.post('/api/upload/image', uploadImage.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -148,7 +216,9 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 
         res.json({
             success: true,
+            type: 'image',
             filename: req.file.filename,
+            originalName: req.file.originalname,
             url: fileUrl,
             path: filePath,
             size: req.file.size,
@@ -156,6 +226,135 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
         });
     } catch (error) {
         console.error('Upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Upload document endpoint
+app.post('/api/upload/document', (req, res) => {
+    uploadDocument.single('document')(req, res, (err) => {
+        if (err) {
+            console.error('Multer error:', err);
+            if (err instanceof multer.MulterError) {
+                return res.status(400).json({ error: `Upload error: ${err.message}` });
+            }
+            return res.status(400).json({ error: err.message });
+        }
+
+        try {
+            if (!req.file) {
+                console.error('No file in request');
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+
+            const fileUrl = `/uploads/${req.file.filename}`;
+            const filePath = req.file.path;
+
+            console.log('Document uploaded successfully:', req.file.filename);
+
+            res.json({
+                success: true,
+                type: 'document',
+                filename: req.file.filename,
+                originalName: req.file.originalname,
+                url: fileUrl,
+                path: filePath,
+                size: req.file.size,
+                mimetype: req.file.mimetype
+            });
+        } catch (error) {
+            console.error('Upload error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+});
+
+// Parse document content
+app.post('/api/document/parse', async (req, res) => {
+    try {
+        const { fileUrl } = req.body;
+        
+        if (!fileUrl) {
+            return res.status(400).json({ error: 'File URL is required' });
+        }
+
+        // Get file path
+        const filename = fileUrl.replace('/uploads/', '');
+        const filePath = join(UPLOADS_DIR, filename);
+
+        console.log('Parsing document:', filename);
+        console.log('File path:', filePath);
+
+        // Check if file exists
+        if (!existsSync(filePath)) {
+            console.error('File not found:', filePath);
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Get file extension
+        const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+        console.log('File extension:', ext);
+        
+        let content = '';
+        let metadata = {};
+
+        // Parse based on file type
+        switch (ext) {
+            case '.txt':
+            case '.md':
+            case '.csv':
+                // Read as text
+                content = await fs.readFile(filePath, 'utf-8');
+                metadata.lines = content.split('\n').length;
+                metadata.characters = content.length;
+                break;
+
+            case '.json':
+                // Read and parse JSON
+                const jsonContent = await fs.readFile(filePath, 'utf-8');
+                try {
+                    const jsonData = JSON.parse(jsonContent);
+                    content = JSON.stringify(jsonData, null, 2);
+                    metadata.valid = true;
+                    metadata.keys = Object.keys(jsonData).length;
+                } catch (e) {
+                    content = jsonContent;
+                    metadata.valid = false;
+                    metadata.error = 'Invalid JSON';
+                }
+                break;
+
+            case '.pdf':
+                // Extract text from PDF
+                try {
+                    console.log('Reading PDF file...');
+                    const pdfBuffer = await fs.readFile(filePath);
+                    console.log('PDF buffer size:', pdfBuffer.length);
+                    console.log('Parsing PDF with pdf-parse...');
+                    const pdfData = await pdfParse(pdfBuffer);
+                    console.log('PDF parsed successfully, pages:', pdfData.numpages);
+                    content = pdfData.text;
+                    metadata.pages = pdfData.numpages;
+                    metadata.info = pdfData.info;
+                } catch (e) {
+                    console.error('PDF parse error:', e);
+                    return res.status(500).json({ error: 'Failed to parse PDF: ' + e.message });
+                }
+                break;
+
+            default:
+                return res.status(400).json({ error: 'Unsupported file type' });
+        }
+
+        res.json({
+            success: true,
+            content: content,
+            metadata: metadata,
+            fileType: ext.replace('.', ''),
+            size: (await fs.stat(filePath)).size
+        });
+    } catch (error) {
+        console.error('Document parse error:', error);
         res.status(500).json({ error: error.message });
     }
 });

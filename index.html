@@ -126,26 +126,56 @@
 
                 <!-- Input Area -->
                 <div class="input-area">
-                    <!-- Image Preview Container -->
-                    <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
-                        <div class="image-preview-wrapper">
+                    <!-- File Preview Container -->
+                    <div class="file-preview-container" id="filePreviewContainer" style="display: none;">
+                        <!-- Image Preview -->
+                        <div class="image-preview-wrapper" id="imagePreviewWrapper" style="display: none;">
                             <img id="imagePreview" src="" alt="Preview">
-                            <button class="remove-image-btn" id="removeImageBtn" title="Remove Image">
+                            <button class="remove-file-btn" id="removeFileBtn" title="Remove File">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="18" y1="6" x2="6" y2="18"></line>
                                     <line x1="6" y1="6" x2="18" y2="18"></line>
                                 </svg>
                             </button>
                         </div>
+                        
+                        <!-- Document Preview -->
+                        <div class="document-preview-wrapper" id="documentPreviewWrapper" style="display: none;">
+                            <div class="document-preview-header">
+                                <span class="document-icon" id="documentIcon">📄</span>
+                                <div class="document-info">
+                                    <span class="document-name" id="documentName">document.txt</span>
+                                    <span class="document-meta" id="documentMeta">0 KB</span>
+                                </div>
+                                <button class="remove-file-btn" id="removeDocumentBtn" title="Remove File">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="document-preview-content" id="documentPreviewContent">
+                                Loading...
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="input-container">
                         <div class="input-actions">
-                            <button class="action-btn" id="attachFileBtn" title="Attach Image">
+                            <button class="action-btn" id="attachImageBtn" title="Attach Image">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
                                     <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </button>
+                            <button class="action-btn" id="attachDocumentBtn" title="Attach Document">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
                                 </svg>
                             </button>
                             <button class="action-btn" id="webSearchBtn" title="Web Search">
@@ -181,11 +211,13 @@
                     </div>
                     <div class="input-footer">
                         <span class="model-info" id="modelInfo">Ollama</span>
+                        <span class="file-limit-info">Max file size: 50MB</span>
                     </div>
                 </div>
                 
-                <!-- Hidden file input -->
-                <input type="file" id="fileInput" style="display: none;" accept="image/*" />
+                <!-- Hidden file inputs -->
+                <input type="file" id="imageInput" style="display: none;" accept="image/*" />
+                <input type="file" id="documentInput" style="display: none;" accept=".txt,.csv,.md,.json,.pdf" />
             </div>
         </div>
 

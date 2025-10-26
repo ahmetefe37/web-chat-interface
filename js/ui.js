@@ -50,8 +50,8 @@ export function updateModelInfo() {
   }
 }
 
-// Add message to UI with optional image
-export function addMessage(role, content, imageUrl = null) {
+// Add message to UI with optional file (image or document)
+export function addMessage(role, content, fileData = null) {
   if (!elements.messagesContainer) return;
   
   // Hide welcome screen
@@ -65,16 +65,49 @@ export function addMessage(role, content, imageUrl = null) {
   const contentDiv = document.createElement("div");
   contentDiv.className = "message-content";
 
-  // Add image if provided (for user messages)
-  if (imageUrl && role === "user") {
-    const imgElement = document.createElement("img");
-    imgElement.src = imageUrl;
-    imgElement.className = "message-image";
-    imgElement.alt = "Uploaded image";
-    imgElement.onclick = () => {
-      window.open(imageUrl, '_blank');
-    };
-    contentDiv.appendChild(imgElement);
+  // Add file if provided (for user messages)
+  if (fileData && role === "user") {
+    if (fileData.type === 'image') {
+      // Image
+      const imgElement = document.createElement("img");
+      imgElement.src = fileData.url;
+      imgElement.className = "message-image";
+      imgElement.alt = "Uploaded image";
+      imgElement.onclick = () => {
+        window.open(fileData.url, '_blank');
+      };
+      contentDiv.appendChild(imgElement);
+    } else if (fileData.type === 'document') {
+      // Document
+      const docDiv = document.createElement("div");
+      docDiv.className = "message-document";
+      docDiv.onclick = () => {
+        // Could open in modal or new tab
+        window.open(fileData.url, '_blank');
+      };
+      
+      const icon = document.createElement("span");
+      icon.className = "message-document-icon";
+      icon.textContent = fileData.icon || '📄';
+      
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "message-document-info";
+      
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "message-document-name";
+      nameSpan.textContent = fileData.originalName || fileData.filename;
+      
+      const metaSpan = document.createElement("span");
+      metaSpan.className = "message-document-meta";
+      metaSpan.textContent = `${fileData.fileType?.toUpperCase() || 'FILE'} • ${formatFileSize(fileData.size)}`;
+      
+      infoDiv.appendChild(nameSpan);
+      infoDiv.appendChild(metaSpan);
+      
+      docDiv.appendChild(icon);
+      docDiv.appendChild(infoDiv);
+      contentDiv.appendChild(docDiv);
+    }
   }
 
   // Add text content
@@ -108,6 +141,16 @@ export function addMessage(role, content, imageUrl = null) {
 
   // Scroll to bottom
   elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+}
+
+// Format file size helper
+function formatFileSize(bytes) {
+  if (!bytes) return '0 Bytes';
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 // Add copy button to code blocks

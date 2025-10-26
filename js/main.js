@@ -41,11 +41,17 @@ import {
 } from './markdown.js';
 import {
   uploadImage,
-  setCurrentImage,
-  getCurrentImage,
-  clearCurrentImage,
-  hasImage,
-} from './image.js';
+  uploadDocument,
+  parseDocument,
+  imageUrlToBase64,
+  getFileType,
+  getFileIcon,
+  formatFileSize,
+  setCurrentFile,
+  getCurrentFile,
+  clearCurrentFile,
+  hasFile,
+} from './file.js';
 
 // DOM Elements
 const elements = {
@@ -94,14 +100,23 @@ const elements = {
   mobileSettingsBtn: document.getElementById("mobileSettingsBtn"),
   
   // Input actions
-  attachFileBtn: document.getElementById("attachFileBtn"),
+  attachImageBtn: document.getElementById("attachImageBtn"),
+  attachDocumentBtn: document.getElementById("attachDocumentBtn"),
   webSearchBtn: document.getElementById("webSearchBtn"),
-  fileInput: document.getElementById("fileInput"),
+  imageInput: document.getElementById("imageInput"),
+  documentInput: document.getElementById("documentInput"),
   
-  // Image preview
-  imagePreviewContainer: document.getElementById("imagePreviewContainer"),
+  // File preview
+  filePreviewContainer: document.getElementById("filePreviewContainer"),
+  imagePreviewWrapper: document.getElementById("imagePreviewWrapper"),
+  documentPreviewWrapper: document.getElementById("documentPreviewWrapper"),
   imagePreview: document.getElementById("imagePreview"),
-  removeImageBtn: document.getElementById("removeImageBtn"),
+  documentIcon: document.getElementById("documentIcon"),
+  documentName: document.getElementById("documentName"),
+  documentMeta: document.getElementById("documentMeta"),
+  documentPreviewContent: document.getElementById("documentPreviewContent"),
+  removeFileBtn: document.getElementById("removeFileBtn"),
+  removeDocumentBtn: document.getElementById("removeDocumentBtn"),
 };
 
 // Initialize UI elements in modules
@@ -148,7 +163,7 @@ async function init() {
     const currentChat = getAllChats()[chatId];
     if (currentChat && currentChat.messages) {
       currentChat.messages.forEach(msg => {
-        addMessage(msg.role, msg.content, msg.imageUrl);
+        addMessage(msg.role, msg.content, msg.fileData);
       });
     }
   }
@@ -174,23 +189,38 @@ function updateSettingsUI() {
   document.getElementById("tempValue").textContent = settings.temperature;
 }
 
-// Send message with optional image
+// Send message with optional file
 async function sendMessage() {
   const message = elements.messageInput.value.trim();
-  if (!message && !hasImage()) return;
+  if (!message && !hasFile()) return;
 
-  // Get current image if attached
-  const currentImage = getCurrentImage();
-  const imageUrl = currentImage ? currentImage.url : null;
+  // Get current file if attached
+  const currentFile = getCurrentFile();
+  
+  // Parse document if it's a document type
+  let documentContent = null;
+  if (currentFile && currentFile.type === 'document') {
+    try {
+      const parsed = await parseDocument(currentFile.url);
+      documentContent = parsed.content;
+      currentFile.fileType = parsed.fileType;
+      currentFile.metadata = parsed.metadata;
+      currentFile.icon = getFileIcon(currentFile.originalName);
+    } catch (error) {
+      console.error('Document parse error:', error);
+      alert('Failed to parse document');
+      return;
+    }
+  }
 
-  // Add user message with image
-  addMessage("user", message, imageUrl);
-  addMessageToChat("user", message, imageUrl);
+  // Add user message with file
+  addMessage("user", message, currentFile);
+  addMessageToChat("user", message, currentFile);
 
-  // Clear input and image
+  // Clear input and file
   elements.messageInput.value = "";
   elements.messageInput.style.height = "auto";
-  clearImagePreview();
+  clearFilePreview();
 
   // Save to storage
   saveChatToLocalStorage();
@@ -203,8 +233,23 @@ async function sendMessage() {
   elements.sendBtn.disabled = true;
 
   try {
-    // Call AI with streaming support
+    // Get chat history
     const chatHist = getChatHistory();
+    
+    // Prepare prompt with document content if available
+    let enhancedChatHist = chatHist;
+    if (documentContent) {
+      // Create enhanced prompt with document content
+      const lastMessage = chatHist[chatHist.length - 1];
+      const enhancedPrompt = `[Document: ${currentFile.originalName}]\n\n${documentContent}\n\n---\n\nUser Question: ${lastMessage.content || "Please analyze this document."}`;
+      
+      enhancedChatHist = [...chatHist.slice(0, -1), {
+        ...lastMessage,
+        content: enhancedPrompt
+      }];
+    }
+    
+    // Call AI with streaming support
     const settings = getSettings();
     
     // Create a message element for streaming
@@ -240,8 +285,9 @@ async function sendMessage() {
       elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
     };
     
-    // Call AI with image and streaming
-    const response = await callAI(chatHist, imageUrl, settings.provider === "ollama" ? onChunk : null);
+    // Call AI with image (only for image type) and streaming
+    const imageUrl = (currentFile && currentFile.type === 'image') ? currentFile.url : null;
+    const response = await callAI(enhancedChatHist, imageUrl, settings.provider === "ollama" ? onChunk : null);
 
     // If not streaming (Gemini/OpenRouter), show response normally
     if (!streamingMessageDiv) {
@@ -320,7 +366,7 @@ window.onChatHistoryItemClick = (chatId) => {
   const currentChat = getAllChats()[chatId];
   if (currentChat && currentChat.messages) {
     currentChat.messages.forEach(msg => {
-      addMessage(msg.role, msg.content, msg.imageUrl);
+      addMessage(msg.role, msg.content, msg.fileData);
     });
   }
   
@@ -501,7 +547,7 @@ window.onLoadSavedChat = async (chatId) => {
     clearMessagesUI();
     
     chatData.messages.forEach(msg => {
-      addMessage(msg.role, msg.content, msg.imageUrl);
+      addMessage(msg.role, msg.content, msg.fileData);
     });
     
     setCurrentChatId(chatData.id);
@@ -571,46 +617,68 @@ if (elements.mobileSettingsBtn) {
   });
 }
 
-// Clear image preview
-function clearImagePreview() {
-  elements.imagePreviewContainer.style.display = "none";
+// Clear file preview
+function clearFilePreview() {
+  elements.filePreviewContainer.style.display = "none";
+  elements.imagePreviewWrapper.style.display = "none";
+  elements.documentPreviewWrapper.style.display = "none";
   elements.imagePreview.src = "";
-  clearCurrentImage();
-  elements.fileInput.value = "";
+  clearCurrentFile();
+  elements.imageInput.value = "";
+  elements.documentInput.value = "";
 }
 
 // Show image preview
 function showImagePreview(imageUrl) {
   elements.imagePreview.src = imageUrl;
-  elements.imagePreviewContainer.style.display = "block";
+  elements.imagePreviewWrapper.style.display = "block";
+  elements.documentPreviewWrapper.style.display = "none";
+  elements.filePreviewContainer.style.display = "block";
 }
 
-// File attachment (image upload)
-elements.attachFileBtn.addEventListener("click", () => {
-  elements.fileInput.click();
+// Show document preview
+function showDocumentPreview(fileData, parsedData) {
+  elements.documentIcon.textContent = fileData.icon;
+  elements.documentName.textContent = fileData.originalName;
+  elements.documentMeta.textContent = `${parsedData.fileType.toUpperCase()} • ${formatFileSize(fileData.size)}`;
+  
+  // Preview content (first 500 characters)
+  const preview = parsedData.content.substring(0, 500);
+  elements.documentPreviewContent.textContent = preview + (parsedData.content.length > 500 ? '...' : '');
+  
+  elements.imagePreviewWrapper.style.display = "none";
+  elements.documentPreviewWrapper.style.display = "block";
+  elements.filePreviewContainer.style.display = "block";
+}
+
+// Image upload
+elements.attachImageBtn.addEventListener("click", () => {
+  elements.imageInput.click();
 });
 
-elements.fileInput.addEventListener("change", async (e) => {
+elements.imageInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   
   if (!file) {
-    clearImagePreview();
+    clearFilePreview();
     return;
   }
   
-  // Check if file is an image
-  if (!file.type.startsWith('image/')) {
-    alert('Please select an image file');
-    clearImagePreview();
+  // Check file size (50MB limit)
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (file.size > maxSize) {
+    alert(`File is too large. Maximum size is 50MB.\nYour file: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+    e.target.value = ''; // Clear input
     return;
   }
   
   try {
     // Upload image to server
     const uploadResult = await uploadImage(file);
+    uploadResult.icon = '🖼️';
     
-    // Store image data
-    setCurrentImage(uploadResult);
+    // Store file data
+    setCurrentFile(uploadResult);
     
     // Show preview
     showImagePreview(uploadResult.url);
@@ -619,14 +687,64 @@ elements.fileInput.addEventListener("change", async (e) => {
     elements.messageInput.focus();
   } catch (error) {
     console.error('Image upload error:', error);
-    alert('Failed to upload image. Please try again.');
-    clearImagePreview();
+    const errorMsg = error.message || 'Failed to upload image';
+    alert(errorMsg + '\nPlease try again.');
+    clearFilePreview();
+    e.target.value = ''; // Clear input
   }
 });
 
-// Remove image button
-elements.removeImageBtn.addEventListener("click", () => {
-  clearImagePreview();
+// Document upload
+elements.attachDocumentBtn.addEventListener("click", () => {
+  elements.documentInput.click();
+});
+
+elements.documentInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  
+  if (!file) {
+    clearFilePreview();
+    return;
+  }
+  
+  // Check file size (50MB limit)
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (file.size > maxSize) {
+    alert(`File is too large. Maximum size is 50MB.\nYour file: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+    e.target.value = ''; // Clear input
+    return;
+  }
+  
+  try {
+    // Upload document to server
+    const uploadResult = await uploadDocument(file);
+    uploadResult.icon = getFileIcon(file.name);
+    
+    // Store file data
+    setCurrentFile(uploadResult);
+    
+    // Parse and preview
+    const parsed = await parseDocument(uploadResult.url);
+    showDocumentPreview(uploadResult, parsed);
+    
+    // Focus on input
+    elements.messageInput.focus();
+  } catch (error) {
+    console.error('Document upload error:', error);
+    const errorMsg = error.message || 'Failed to upload document';
+    alert(errorMsg + '\nPlease try again.');
+    clearFilePreview();
+    e.target.value = ''; // Clear input
+  }
+});
+
+// Remove file buttons
+elements.removeFileBtn.addEventListener("click", () => {
+  clearFilePreview();
+});
+
+elements.removeDocumentBtn.addEventListener("click", () => {
+  clearFilePreview();
 });
 
 // Web search toggle
