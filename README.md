@@ -8,6 +8,8 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
 
 - 💬 **Multi-Provider Support** - Chat with Ollama (local), Google Gemini, or OpenRouter
 - 🖼️ **Image Upload & Vision** - Upload images and analyze them with AI (Ollama llava, Gemini Vision, Claude 3)
+- 📄 **Document Upload & Analysis** - Upload and analyze documents (TXT, CSV, MD, JSON, PDF) with AI
+- 🔍 **File Preview Modal** - Click on uploaded files in chat to preview content in a beautiful modal
 - 🎨 **HTML Preview** - Live preview of HTML code with sandboxed iframe
 - 💾 **Smart Chat History** - Auto-save conversations with metadata (date, model, provider)
 - 🔄 **Dynamic Model Loading** - Auto-detect and switch between models
@@ -18,6 +20,7 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
 - ⚡ **Streaming Responses** - Real-time AI responses with Ollama
 - 🔒 **Privacy First** - Local storage, no external tracking
 - ⚡ **Modular Architecture** - Clean, maintainable codebase
+- 🚀 **One-Click Setup** - Automated installation and startup with batch files (Windows)
 
 ## 🚀 Quick Start
 
@@ -30,25 +33,38 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
    - OpenRouter: [Get API Key](https://openrouter.ai/keys)
 
 ### Clone from GitHub
-Clone the project fies from github.com
+Clone the project files from github.com
 ```bash
 git clone https://github.com/ahmetefe37/web-chat-interface.git
 ```
 
 ### Installation
+
+#### Method 1: Automated Setup (Windows)
+**One-Click Installation:**
+```bash
+setup.bat
+```
+This will automatically install all dependencies.
+
+**One-Click Startup:**
+```bash
+start.bat
+```
+This will start the server at `http://localhost:5000`
+
+#### Method 2: Manual Installation
 Set the directory
 ```bash
 cd web-chat-interface
 ```
 
-### Install dependencies
-Install all dependencies for the project
+Install dependencies
 ```bash
 npm install
 ```
 
-
-### Start the server
+Start the server
 ```bash
 npm start
 ```
@@ -104,8 +120,11 @@ npm run dev
 - **Auto-Save**: Conversations save automatically
 - **Multiple Chats**: Switch between different conversations
 - **Chat History**: View and manage saved chats
-- **Image Upload**: Click 📷 button to attach images to your messages
+- **Image Upload**: Click 📷 (image) button to attach images to your messages
+- **Document Upload**: Click 📄 (document) button to attach documents (TXT, CSV, MD, JSON, PDF)
 - **Vision Analysis**: AI can analyze and describe uploaded images
+- **Document Analysis**: AI can read and analyze document content
+- **File Preview**: Click on any uploaded file in chat to preview its content in a modal
 
 ### Code Features
 
@@ -133,13 +152,39 @@ npm run dev
 - **Gemini**: gemini-2.5-pro, gemini-2.5-flash-image
 - **OpenRouter**: Claude 3, GPT-4 Vision, and other vision models
 
-**Features**:
+**Image Features**:
 - Image preview before sending
 - Remove image button (❌)
 - Images saved in chat history
-- Click image in chat to open full size
-- Max file size: 10MB
+- Click image in chat to open full-size preview modal
+- Max file size: 50MB
 - Streaming responses (Ollama only)
+
+### Document Features
+
+**Upload & Analyze Documents**:
+1. Click the 📄 (document) button in input area
+2. Select a document file (TXT, CSV, MD, JSON, PDF)
+3. Document preview appears with file info and content sample
+4. Type your question about the document (optional)
+5. Send to AI for analysis
+
+**Supported Document Types**:
+- **TXT**: Plain text files
+- **CSV**: Comma-separated values (parsed and formatted)
+- **MD**: Markdown documents
+- **JSON**: JSON data (parsed and pretty-printed)
+- **PDF**: Portable document format (text extraction)
+
+**Document Features**:
+- Document preview before sending with content sample
+- File type icons and metadata display
+- Remove document button (❌)
+- Documents saved in chat history
+- Click document in chat to open full preview modal
+- Download button in preview modal
+- Max file size: 50MB
+- AI can read and analyze document content
 
 ### Responsive Design
 ---
@@ -165,17 +210,23 @@ web-chat-interface/
 ├── index.html          # Main HTML file
 ├── server.js           # Express.js backend
 ├── package.json        # Node.js dependencies
+├── setup.bat           # One-click dependency installation (Windows)
+├── start.bat           # One-click server startup (Windows)
 ├── .gitignore          # Git ignore rules
 ├── README.md           # Documentation
 ├── cache/              # Saved chats & uploads (git-ignored)
 │   └── library/
-│       └── uploads/    # Uploaded images
+│       └── uploads/    # Uploaded images & documents
 ├── static/
 │   ├── icons
 │   │   └── favicon.svg # App icon (WCI logo)
 │   ├── images
 │   │   └── views/      # Screenshots
 │   └── logos/          # App logos
+│       ├── logo.png            # Full logo (sidebar open)
+│       ├── logo-mini.png       # Mini logo (sidebar collapsed)
+│       ├── logo-electrical.png # Electrical theme logo
+│       └── logo-mini-electrical.png
 ├── css/                # Modular CSS
 │   ├── base.css        # CSS variables & resets
 │   ├── desktop.css     # Desktop styles (default)
@@ -190,7 +241,7 @@ web-chat-interface/
     ├── storage.js      # localStorage & server cache
     ├── ui.js           # DOM manipulation & UI updates
     ├── markdown.js     # Markdown & HTML preview
-    ├── image.js        # Image upload & processing
+    ├── file.js         # Image & document upload/processing
     └── README.md       # JavaScript documentation
 ```
 
@@ -266,11 +317,11 @@ Response:
 }
 ```
 
-### Image Upload Endpoints
+### File Upload Endpoints
 
 **Upload Image**
 ```http
-POST /api/upload
+POST /api/upload/image
 Content-Type: multipart/form-data
 
 FormData: image=[file]
@@ -284,6 +335,44 @@ Response:
   "url": "/uploads/image-1234567890-123456789.jpg",
   "size": 524288,
   "mimetype": "image/jpeg"
+}
+```
+
+**Upload Document**
+```http
+POST /api/upload/document
+Content-Type: multipart/form-data
+
+FormData: document=[file]
+```
+
+Response:
+```json
+{
+  "success": true,
+  "filename": "document-1234567890-123456789.pdf",
+  "url": "/uploads/document-1234567890-123456789.pdf",
+  "size": 1048576,
+  "mimetype": "application/pdf"
+}
+```
+
+**Parse Document Content**
+```http
+POST /api/document/parse
+Content-Type: application/json
+
+{
+  "fileUrl": "/uploads/document-1234567890-123456789.pdf"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "content": "Extracted document text content...",
+  "type": "pdf"
 }
 ```
 
@@ -434,7 +523,8 @@ Chat files format: `chat_YYYYMMDD_HHMMSS_[ID].json`
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.0" (optional)
@@ -512,16 +602,17 @@ const PORT = 3000; // Change to any available port
 3. `/cache` directory exists
 4. localStorage not disabled
 
-### Image Upload Not Working
+### File Upload Not Working
 
-**Error**: `Failed to upload image`
+**Error**: `Failed to upload image/document`
 
 **Solution**:
-1. Check file size (max 10MB)
-2. Ensure file is an image (JPG, PNG, GIF, WebP)
-3. Check `/cache/library/uploads` directory exists
-4. Check browser console for errors
-5. Verify server has write permissions
+1. Check file size (max 50MB)
+2. For images: Ensure file is JPG, PNG, GIF, or WebP
+3. For documents: Ensure file is TXT, CSV, MD, JSON, or PDF
+4. Check `/cache/library/uploads` directory exists
+5. Check browser console for errors
+6. Verify server has write permissions
 
 ### Vision Model Not Analyzing Images
 
@@ -542,6 +633,24 @@ ollama pull llava
 **OpenRouter**:
 - Use vision-capable model (Claude 3, GPT-4V)
 - Verify API key and credits
+
+### Document Parsing Error (PDF)
+
+**Error**: `PDF parse error: TypeError: pdfParse is not a function`
+
+**Solution**:
+```bash
+# Ensure correct pdf-parse version is installed
+npm install pdf-parse@1.1.1 --save
+```
+
+### File Preview Modal Not Opening
+
+**Check**:
+1. Click on uploaded files in chat (not the preview before sending)
+2. Check browser console for JavaScript errors
+3. Ensure file was uploaded successfully
+4. Hard refresh (Ctrl+Shift+R)
 
 ### Mobile Header Not Showing
 
