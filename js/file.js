@@ -99,16 +99,20 @@ export async function imageUrlToBase64(imageUrl) {
     }
 }
 
-// Detect file type
+// Detect file type from filename or File object
 export function getFileType(file) {
-    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    // Handle both File objects and strings
+    const filename = typeof file === 'string' ? file : file.name;
+    if (!filename) return 'unknown';
+    
+    const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
     const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
     const documentExts = ['.txt', '.csv', '.md', '.json', '.pdf'];
     
     if (imageExts.includes(ext)) {
         return 'image';
     } else if (documentExts.includes(ext)) {
-        return 'document';
+        return ext.replace('.', ''); // Return specific type (pdf, csv, etc.)
     }
     return 'unknown';
 }

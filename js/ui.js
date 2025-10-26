@@ -72,19 +72,16 @@ export function addMessage(role, content, fileData = null) {
       const imgElement = document.createElement("img");
       imgElement.src = fileData.url;
       imgElement.className = "message-image";
-      imgElement.alt = "Uploaded image";
-      imgElement.onclick = () => {
-        window.open(fileData.url, '_blank');
-      };
+      imgElement.alt = fileData.originalName || "Uploaded image";
+      // Click handler is in main.js via event delegation
       contentDiv.appendChild(imgElement);
     } else if (fileData.type === 'document') {
       // Document
       const docDiv = document.createElement("div");
       docDiv.className = "message-document";
-      docDiv.onclick = () => {
-        // Could open in modal or new tab
-        window.open(fileData.url, '_blank');
-      };
+      
+      // Store file data for preview
+      docDiv.dataset.fileData = JSON.stringify(fileData);
       
       const icon = document.createElement("span");
       icon.className = "message-document-icon";

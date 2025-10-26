@@ -90,6 +90,13 @@ const elements = {
   previewFrame: document.getElementById("previewFrame"),
   refreshPreviewBtn: document.getElementById("refreshPreview"),
   
+  // File preview modal
+  filePreviewModal: document.getElementById("filePreviewModal"),
+  closeFilePreviewModalBtn: document.getElementById("closeFilePreviewModal"),
+  filePreviewContent: document.getElementById("filePreviewContent"),
+  filePreviewTitle: document.getElementById("filePreviewTitle"),
+  downloadFileBtn: document.getElementById("downloadFileBtn"),
+  
   // Sidebar elements
   sidebar: document.getElementById("sidebar"),
   toggleSidebarBtn: document.getElementById("toggleSidebar"),
@@ -756,6 +763,99 @@ elements.webSearchBtn.addEventListener("click", () => {
     elements.messageInput.placeholder = "Web search enabled. Type your message...";
   } else {
     elements.messageInput.placeholder = "Type your message...";
+  }
+});
+
+// File Preview Modal Functions
+function openFilePreview(fileData, content = null) {
+  const modal = elements.filePreviewModal;
+  const contentDiv = elements.filePreviewContent;
+  const title = elements.filePreviewTitle;
+  const downloadBtn = elements.downloadFileBtn;
+  
+  // Set title
+  title.textContent = fileData.originalName || 'File Preview';
+  
+  // Set download link
+  downloadBtn.href = fileData.url;
+  downloadBtn.download = fileData.originalName;
+  
+  // Clear previous content
+  contentDiv.innerHTML = '';
+  contentDiv.className = 'file-preview-content';
+  
+  // Render based on file type
+  if (fileData.type === 'image') {
+    contentDiv.classList.add('image-preview');
+    const img = document.createElement('img');
+    img.src = fileData.url;
+    img.alt = fileData.originalName;
+    contentDiv.appendChild(img);
+  } else if (fileData.type === 'document') {
+    const fileType = getFileType(fileData.originalName);
+    
+    if (fileType === 'pdf') {
+      contentDiv.classList.add('pdf-preview');
+      const iframe = document.createElement('iframe');
+      iframe.src = fileData.url;
+      contentDiv.appendChild(iframe);
+    } else {
+      // Text-based files
+      contentDiv.classList.add('text-preview');
+      if (content) {
+        contentDiv.textContent = content;
+      } else {
+        contentDiv.textContent = 'Loading...';
+        // Fetch content if not provided
+        parseDocument(fileData.url).then(parsed => {
+          contentDiv.textContent = parsed.content;
+        }).catch(err => {
+          contentDiv.textContent = 'Failed to load content: ' + err.message;
+        });
+      }
+    }
+  }
+  
+  // Show modal
+  modal.style.display = 'flex';
+}
+
+function closeFilePreview() {
+  elements.filePreviewModal.style.display = 'none';
+}
+
+// File preview modal events
+elements.closeFilePreviewModalBtn.addEventListener('click', closeFilePreview);
+
+elements.filePreviewModal.addEventListener('click', (e) => {
+  if (e.target === elements.filePreviewModal) {
+    closeFilePreview();
+  }
+});
+
+// Make file attachments in messages clickable
+window.addEventListener('click', (e) => {
+  // Check if clicked on message image
+  if (e.target.classList.contains('message-image')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const fileData = {
+      type: 'image',
+      url: e.target.src,
+      originalName: e.target.alt || 'image.jpg'
+    };
+    openFilePreview(fileData);
+  }
+  
+  // Check if clicked on message document
+  if (e.target.closest('.message-document')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const docElement = e.target.closest('.message-document');
+    const fileData = JSON.parse(docElement.dataset.fileData || '{}');
+    if (fileData.url) {
+      openFilePreview(fileData);
+    }
   }
 });
 
