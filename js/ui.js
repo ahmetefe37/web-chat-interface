@@ -115,14 +115,14 @@ export function addMessage(role, content, fileData = null) {
       textDiv.className = "message-text";
       textDiv.innerHTML = marked.parse(content);
       
-      // Add syntax highlighting
+      // Add syntax highlighting and code headers
       textDiv.querySelectorAll("pre code").forEach((block) => {
         hljs.highlightElement(block);
-        addCopyButton(block);
+        addCodeHeader(block);
       });
       
       // Add HTML preview buttons for code blocks
-      addHTMLPreviewButtons(textDiv);
+      addHTMLPreviewButtonsToElement(textDiv);
       
       contentDiv.appendChild(textDiv);
     } else {
@@ -150,8 +150,8 @@ function formatFileSize(bytes) {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-// Add copy button to code blocks
-function addCopyButton(codeBlock) {
+// Add code header with copy button to code blocks (exported for streaming)
+export function addCodeHeader(codeBlock) {
   const pre = codeBlock.parentElement;
   
   // Check if header already exists
@@ -197,8 +197,8 @@ function addCopyButton(codeBlock) {
   pre.insertBefore(codeHeader, pre.firstChild);
 }
 
-// Add HTML preview buttons
-function addHTMLPreviewButtons(contentDiv) {
+// Add HTML preview buttons (exported for streaming)
+export function addHTMLPreviewButtonsToElement(contentDiv) {
   const codeBlocks = contentDiv.querySelectorAll("pre code");
   codeBlocks.forEach((block) => {
     const language = block.className.match(/language-(\w+)/)?.[1];
@@ -208,6 +208,9 @@ function addHTMLPreviewButtons(contentDiv) {
       if (!codeHeader) return;
       
       const btnContainer = codeHeader.querySelector('.code-actions');
+      
+      // Check if preview button already exists
+      if (btnContainer.querySelector('.preview-btn')) return;
       
       const previewBtn = document.createElement("button");
       previewBtn.className = "preview-btn";

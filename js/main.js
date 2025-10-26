@@ -31,6 +31,8 @@ import {
   clearMessagesUI,
   updateChatHistoryUI,
   displaySavedChats,
+  addCodeHeader,
+  addHTMLPreviewButtonsToElement,
 } from './ui.js';
 import {
   initializeMarked,
@@ -287,6 +289,23 @@ async function sendMessage() {
       fullResponse += chunk;
       const textDiv = streamingContentDiv.querySelector('.message-text');
       textDiv.innerHTML = marked.parse(fullResponse);
+      
+      // Apply syntax highlighting and add code headers
+      textDiv.querySelectorAll("pre code").forEach((block) => {
+        // Only highlight if not already highlighted
+        if (!block.classList.contains('hljs')) {
+          hljs.highlightElement(block);
+        }
+        
+        // Add copy button and code header
+        const pre = block.parentElement;
+        if (!pre.querySelector('.code-header')) {
+          addCodeHeader(block);
+        }
+      });
+      
+      // Add HTML preview buttons for HTML code blocks
+      addHTMLPreviewButtonsToElement(textDiv);
       
       // Auto-scroll
       elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
