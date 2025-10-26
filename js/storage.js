@@ -99,6 +99,68 @@ export async function loadSavedChatsFromServer() {
   return [];
 }
 
+// Synchronize all chats from server cache (Single Source of Truth)
+export async function syncChatsWithServer() {
+  console.log('🔄 Starting chat synchronization with server cache...');
+  
+  try {
+    const serverUrl = getServerUrl();
+    const response = await fetch(`${serverUrl}/api/chats/list`);
+    
+    if (!response.ok) {
+      console.error('Failed to sync chats from server');
+      return false;
+    }
+    
+    const data = await response.json();
+    const serverChats = data.chats || [];
+    
+    console.log(`📂 Found ${serverChats.length} chats in cache folder`);
+    
+    // Load full chat data for each chat
+    const fullChats = {};
+    let loadedCount = 0;
+    
+    for (const chatMeta of serverChats) {
+      try {
+        const chatData = await loadChatFromServer(chatMeta.id);
+        if (chatData && chatData.messages) {
+          fullChats[chatData.id] = chatData;
+          loadedCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to load chat ${chatMeta.id}:`, error);
+      }
+    }
+    
+    console.log(`✅ Successfully loaded ${loadedCount} chats from cache`);
+    
+    // Update allChats with server data
+    setAllChats(fullChats);
+    
+    // Save to localStorage as backup
+    saveChatToLocalStorage();
+    
+    // Get current chat ID from localStorage
+    const currentChatId = localStorage.getItem("llamaCurrentChatId");
+    
+    // If current chat doesn't exist in server chats, start new chat
+    if (currentChatId && !fullChats[currentChatId]) {
+      console.log('⚠️ Current chat not in cache, will start new chat');
+      setCurrentChatId(null);
+    } else if (currentChatId) {
+      setCurrentChatId(currentChatId);
+    }
+    
+    console.log('✅ Chat synchronization complete!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error synchronizing chats:', error);
+    return false;
+  }
+}
+
 // Load specific chat from server
 export async function loadChatFromServer(chatId) {
   try {

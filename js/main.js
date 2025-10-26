@@ -20,6 +20,7 @@ import {
   loadSavedChatsFromServer,
   loadChatFromServer,
   deleteChatFromServer,
+  syncChatsWithServer,
 } from './storage.js';
 import {
   initUIElements,
@@ -147,9 +148,19 @@ Object.defineProperty(window, '__currentChatId', {
 
 // Initialize Application
 async function init() {
-  // Load settings and chats
+  console.log('🚀 Initializing Web Chat Interface...');
+  
+  // Load settings
   loadSettings();
-  loadChatsFromLocalStorage();
+  
+  // 🔄 SYNC: Load all chats from cache folder (Single Source of Truth)
+  console.log('📂 Synchronizing chats from cache folder...');
+  const syncSuccess = await syncChatsWithServer();
+  
+  if (!syncSuccess) {
+    console.warn('⚠️ Cache sync failed, falling back to localStorage');
+    loadChatsFromLocalStorage();
+  }
   
   // Update UI
   updateSettingsUI();
@@ -166,11 +177,17 @@ async function init() {
   // Start new chat if none exists
   const chatId = getCurrentChatId();
   if (!chatId) {
+    console.log('📝 No active chat, starting new chat...');
     startNewChat();
+    // 🔄 SYNC: Save new chat immediately
+    await saveChatToServer(getCurrentChatId());
+    await syncChatsWithServer();
+    updateChatHistoryUI();
   } else {
     // Restore current chat messages
     const currentChat = getAllChats()[chatId];
     if (currentChat && currentChat.messages) {
+      console.log(`📖 Restoring chat: ${currentChat.title} (${currentChat.messages.length} messages)`);
       currentChat.messages.forEach(msg => {
         addMessage(msg.role, msg.content, msg.fileData);
       });
@@ -182,6 +199,8 @@ async function init() {
   if (sidebarCollapsed) {
     elements.sidebar.classList.add("collapsed");
   }
+  
+  console.log('✅ Initialization complete!');
 }
 
 // Update settings UI from current settings
@@ -327,13 +346,20 @@ async function sendMessage() {
 
     // Save to storage
     saveChatToLocalStorage();
-    updateChatHistoryUI();
     
-    // Save to server only if chat has meaningful content
+    // 🔄 SYNC: Save to server and sync after AI response
     const updatedChatHist = getChatHistory();
     const chatId = getCurrentChatId();
     if (updatedChatHist.length >= 2) {
-      saveChatToServer(chatId);
+      console.log('💾 Saving chat to cache after AI response...');
+      await saveChatToServer(chatId);
+      
+      // Sync to refresh sidebar
+      await syncChatsWithServer();
+      updateChatHistoryUI();
+      console.log('✅ Chat saved and synced!');
+    } else {
+      updateChatHistoryUI();
     }
   } catch (error) {
     console.error("Error:", error);
@@ -377,23 +403,50 @@ elements.messageInput.addEventListener("input", () => {
 });
 
 // New chat
-elements.newChatBtn.addEventListener("click", () => {
+elements.newChatBtn.addEventListener("click", async () => {
+  console.log('📝 Creating new chat...');
   startNewChat();
   clearMessagesUI();
   saveChatToLocalStorage();
+  
+  // 🔄 SYNC: Save new chat to cache immediately
+  const newChatId = getCurrentChatId();
+  await saveChatToServer(newChatId);
+  
+  // Sync to refresh sidebar
+  await syncChatsWithServer();
   updateChatHistoryUI();
+  
+  console.log('✅ New chat created and synced!');
 });
 
 // Chat history item click
-window.onChatHistoryItemClick = (chatId) => {
-  loadChat(chatId);
-  clearMessagesUI();
+window.onChatHistoryItemClick = async (chatId) => {
+  console.log(`📖 Loading chat: ${chatId}`);
   
-  const currentChat = getAllChats()[chatId];
-  if (currentChat && currentChat.messages) {
-    currentChat.messages.forEach(msg => {
-      addMessage(msg.role, msg.content, msg.fileData);
-    });
+  // Check if chat exists in current chats
+  let chat = getAllChats()[chatId];
+  
+  // If not found, try to sync from server
+  if (!chat) {
+    console.log('⚠️ Chat not found locally, syncing from cache...');
+    await syncChatsWithServer();
+    chat = getAllChats()[chatId];
+  }
+  
+  if (chat) {
+    loadChat(chatId);
+    clearMessagesUI();
+    
+    if (chat.messages) {
+      console.log(`✅ Loaded chat with ${chat.messages.length} messages`);
+      chat.messages.forEach(msg => {
+        addMessage(msg.role, msg.content, msg.fileData);
+      });
+    }
+  } else {
+    console.error('❌ Chat not found even after sync');
+    alert('Chat not found. It may have been deleted.');
   }
   
   setCurrentChatId(chatId);
@@ -561,23 +614,31 @@ elements.clearAllChatsBtn.addEventListener("click", async () => {
 
 // Load saved chat callback
 window.onLoadSavedChat = async (chatId) => {
-  const chatData = await loadChatFromServer(chatId);
+  console.log(`📂 Loading saved chat from cache: ${chatId}`);
+  
+  // 🔄 SYNC: Sync before loading to ensure we have latest data
+  await syncChatsWithServer();
+  
+  const chatData = getAllChats()[chatId];
+  
   if (chatData) {
-    // Add to allChats
-    const chats = getAllChats();
-    chats[chatData.id] = chatData;
-    setAllChats(chats);
-    
     // Load the chat
     loadChat(chatData.id);
     clearMessagesUI();
     
-    chatData.messages.forEach(msg => {
-      addMessage(msg.role, msg.content, msg.fileData);
-    });
+    console.log(`✅ Loaded chat: ${chatData.title} (${chatData.messages?.length || 0} messages)`);
+    
+    if (chatData.messages) {
+      chatData.messages.forEach(msg => {
+        addMessage(msg.role, msg.content, msg.fileData);
+      });
+    }
     
     setCurrentChatId(chatData.id);
     updateChatHistoryUI();
+  } else {
+    console.error('❌ Chat not found in cache');
+    alert('Chat not found. It may have been deleted.');
   }
   
   elements.historyModal.classList.remove("active");
@@ -585,19 +646,24 @@ window.onLoadSavedChat = async (chatId) => {
 
 // Delete saved chat callback
 window.onDeleteSavedChat = async (chatId) => {
+  console.log(`🗑️ Deleting chat: ${chatId}`);
   const success = await deleteChatFromServer(chatId);
+  
   if (success) {
-    // Remove from allChats
-    const chats = getAllChats();
-    delete chats[chatId];
-    setAllChats(chats);
+    console.log('✅ Chat deleted from cache');
+    
+    // 🔄 SYNC: Resync from cache folder
+    await syncChatsWithServer();
     
     // Update UI
     updateChatHistoryUI();
-    saveChatToLocalStorage();
     
     // Refresh saved chats list
     await displaySavedChats();
+    
+    console.log('✅ Sidebar synchronized after deletion');
+  } else {
+    console.error('❌ Failed to delete chat');
   }
 };
 
