@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -12,11 +13,52 @@ const app = express();
 const PORT = 5000;
 const OLLAMA_URL = 'http://127.0.0.1:11434';
 const CACHE_DIR = join(__dirname, 'cache');
+const UPLOADS_DIR = join(__dirname, 'cache', 'library', 'uploads');
+
+// Ensure upload directory exists
+async function ensureUploadDir() {
+    if (!existsSync(UPLOADS_DIR)) {
+        await fs.mkdir(UPLOADS_DIR, { recursive: true });
+        console.log(`Created uploads directory: ${UPLOADS_DIR}`);
+    }
+}
+ensureUploadDir();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: async (req, file, cb) => {
+        await ensureUploadDir();
+        cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = file.originalname.split('.').pop();
+        cb(null, `image-${uniqueSuffix}.${ext}`);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Accept images only
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only image files are allowed!'), false);
+        }
+        cb(null, true);
+    }
+});
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(__dirname));
+
+// Serve uploaded files
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Serve index.html
 app.get('/', (req, res) => {
@@ -90,6 +132,72 @@ app.get('/api/tags', async (req, res) => {
         res.json(data);
     } catch (error) {
         console.error('Tags error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Upload image endpoint
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const fileUrl = `/uploads/${req.file.filename}`;
+        const filePath = req.file.path;
+
+        res.json({
+            success: true,
+            filename: req.file.filename,
+            url: fileUrl,
+            path: filePath,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Convert image to base64
+app.post('/api/image-to-base64', async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'Image URL is required' });
+        }
+
+        let imagePath;
+        
+        // Check if it's a local file path
+        if (imageUrl.startsWith('/uploads/')) {
+            const filename = imageUrl.replace('/uploads/', '');
+            imagePath = join(UPLOADS_DIR, filename);
+        } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            // Download from URL
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch image from URL');
+            }
+            const buffer = await response.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString('base64');
+            return res.json({ success: true, base64: base64 });
+        } else {
+            return res.status(400).json({ error: 'Invalid image URL' });
+        }
+
+        // Read local file and convert to base64
+        const imageBuffer = await fs.readFile(imagePath);
+        const base64 = imageBuffer.toString('base64');
+
+        res.json({
+            success: true,
+            base64: base64
+        });
+    } catch (error) {
+        console.error('Base64 conversion error:', error);
         res.status(500).json({ error: error.message });
     }
 });

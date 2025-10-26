@@ -45,13 +45,18 @@ export function startNewChat() {
   return currentChatId;
 }
 
-// Add message to chat
-export function addMessageToChat(role, content) {
+// Add message to chat with optional image
+export function addMessageToChat(role, content, imageUrl = null) {
   const message = {
     role: role,
     content: content,
     timestamp: new Date().toISOString(),
   };
+  
+  // Add image URL if provided
+  if (imageUrl) {
+    message.imageUrl = imageUrl;
+  }
   
   chatHistory.push(message);
   

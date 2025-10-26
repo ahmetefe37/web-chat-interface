@@ -185,6 +185,11 @@
     max-width: 100%;
 }
 
+.message-image {
+    max-width: 100%;
+    max-height: 250px;
+}
+
 /* Welcome screen - Smaller on mobile */
 .welcome-screen {
     padding: var(--spacing-lg) var(--spacing-md);
@@ -196,6 +201,19 @@
 
 .welcome-screen p {
     font-size: 14px;
+}
+
+/* Image Preview - Mobile */
+.image-preview-container {
+    padding: var(--spacing-sm);
+}
+
+.image-preview-wrapper {
+    max-width: 150px;
+}
+
+.image-preview-wrapper img {
+    max-height: 150px;
 }
 
 /* Input container - Stack vertically on small screens */

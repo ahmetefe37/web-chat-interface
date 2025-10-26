@@ -50,8 +50,8 @@ export function updateModelInfo() {
   }
 }
 
-// Add message to UI
-export function addMessage(role, content) {
+// Add message to UI with optional image
+export function addMessage(role, content, imageUrl = null) {
   if (!elements.messagesContainer) return;
   
   // Hide welcome screen
@@ -65,20 +65,42 @@ export function addMessage(role, content) {
   const contentDiv = document.createElement("div");
   contentDiv.className = "message-content";
 
-  if (role === "assistant") {
-    // Render markdown for assistant messages
-    contentDiv.innerHTML = marked.parse(content);
-    
-    // Add syntax highlighting
-    contentDiv.querySelectorAll("pre code").forEach((block) => {
-      hljs.highlightElement(block);
-      addCopyButton(block);
-    });
-    
-    // Add HTML preview buttons for code blocks
-    addHTMLPreviewButtons(contentDiv);
-  } else {
-    contentDiv.textContent = content;
+  // Add image if provided (for user messages)
+  if (imageUrl && role === "user") {
+    const imgElement = document.createElement("img");
+    imgElement.src = imageUrl;
+    imgElement.className = "message-image";
+    imgElement.alt = "Uploaded image";
+    imgElement.onclick = () => {
+      window.open(imageUrl, '_blank');
+    };
+    contentDiv.appendChild(imgElement);
+  }
+
+  // Add text content
+  if (content) {
+    if (role === "assistant") {
+      // Render markdown for assistant messages
+      const textDiv = document.createElement("div");
+      textDiv.className = "message-text";
+      textDiv.innerHTML = marked.parse(content);
+      
+      // Add syntax highlighting
+      textDiv.querySelectorAll("pre code").forEach((block) => {
+        hljs.highlightElement(block);
+        addCopyButton(block);
+      });
+      
+      // Add HTML preview buttons for code blocks
+      addHTMLPreviewButtons(textDiv);
+      
+      contentDiv.appendChild(textDiv);
+    } else {
+      const textDiv = document.createElement("div");
+      textDiv.className = "message-text";
+      textDiv.textContent = content;
+      contentDiv.appendChild(textDiv);
+    }
   }
 
   messageDiv.appendChild(contentDiv);

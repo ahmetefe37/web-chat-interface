@@ -7,6 +7,7 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
 ## ✨ Features
 
 - 💬 **Multi-Provider Support** - Chat with Ollama (local), Google Gemini, or OpenRouter
+- 🖼️ **Image Upload & Vision** - Upload images and analyze them with AI (Ollama llava, Gemini Vision, Claude 3)
 - 🎨 **HTML Preview** - Live preview of HTML code with sandboxed iframe
 - 💾 **Smart Chat History** - Auto-save conversations with metadata (date, model, provider)
 - 🔄 **Dynamic Model Loading** - Auto-detect and switch between models
@@ -14,6 +15,7 @@ Modern, responsive web chat interface for multiple AI providers including Ollama
 - 🌙 **Dark Theme** - Beautiful, modern dark UI with gradient accents
 - 📝 **Rich Markdown** - Full markdown rendering with syntax highlighting
 - 🎯 **Code Block Tools** - Copy, preview buttons with language detection
+- ⚡ **Streaming Responses** - Real-time AI responses with Ollama
 - 🔒 **Privacy First** - Local storage, no external tracking
 - ⚡ **Modular Architecture** - Clean, maintainable codebase
 
@@ -70,6 +72,11 @@ or
 ollama pull mistral
 ```
 
+For vision/image analysis (optional)
+```bash
+ollama pull llava
+```
+
 ### Development Mode
 Auto-restart on file changes
 ```bash
@@ -97,6 +104,8 @@ npm run dev
 - **Auto-Save**: Conversations save automatically
 - **Multiple Chats**: Switch between different conversations
 - **Chat History**: View and manage saved chats
+- **Image Upload**: Click 📷 button to attach images to your messages
+- **Vision Analysis**: AI can analyze and describe uploaded images
 
 ### Code Features
 
@@ -109,6 +118,28 @@ npm run dev
 1. Hover over code block
 2. Click `Copy` button
 3. Code copied to clipboard
+
+### Image Features
+
+**Upload & Analyze Images**:
+1. Click the 📷 (image) button in input area
+2. Select an image file (JPG, PNG, GIF, WebP)
+3. Preview appears above input
+4. Type your question about the image (optional)
+5. Send to AI for analysis
+
+**Supported Vision Models**:
+- **Ollama**: llava, bakllava (local vision models)
+- **Gemini**: gemini-2.5-pro, gemini-2.5-flash-image
+- **OpenRouter**: Claude 3, GPT-4 Vision, and other vision models
+
+**Features**:
+- Image preview before sending
+- Remove image button (❌)
+- Images saved in chat history
+- Click image in chat to open full size
+- Max file size: 10MB
+- Streaming responses (Ollama only)
 
 ### Responsive Design
 ---
@@ -136,12 +167,15 @@ web-chat-interface/
 ├── package.json        # Node.js dependencies
 ├── .gitignore          # Git ignore rules
 ├── README.md           # Documentation
-├── cache/              # Saved chats (git-ignored)
+├── cache/              # Saved chats & uploads (git-ignored)
+│   └── library/
+│       └── uploads/    # Uploaded images
 ├── static/
 │   ├── icons
-│       ├── favicon.svg # App icon (WCI logo)
-│   └── iamges
-│       ├── ...
+│   │   └── favicon.svg # App icon (WCI logo)
+│   ├── images
+│   │   └── views/      # Screenshots
+│   └── logos/          # App logos
 ├── css/                # Modular CSS
 │   ├── base.css        # CSS variables & resets
 │   ├── desktop.css     # Desktop styles (default)
@@ -156,6 +190,7 @@ web-chat-interface/
     ├── storage.js      # localStorage & server cache
     ├── ui.js           # DOM manipulation & UI updates
     ├── markdown.js     # Markdown & HTML preview
+    ├── image.js        # Image upload & processing
     └── README.md       # JavaScript documentation
 ```
 
@@ -228,6 +263,45 @@ Response:
     { "name": "llama3.2", "size": "2.0GB" },
     { "name": "mistral", "size": "4.1GB" }
   ]
+}
+```
+
+### Image Upload Endpoints
+
+**Upload Image**
+```http
+POST /api/upload
+Content-Type: multipart/form-data
+
+FormData: image=[file]
+```
+
+Response:
+```json
+{
+  "success": true,
+  "filename": "image-1234567890-123456789.jpg",
+  "url": "/uploads/image-1234567890-123456789.jpg",
+  "size": 524288,
+  "mimetype": "image/jpeg"
+}
+```
+
+**Convert Image to Base64**
+```http
+POST /api/image-to-base64
+Content-Type: application/json
+
+{
+  "imageUrl": "/uploads/image-1234567890-123456789.jpg"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "base64": "iVBORw0KGgoAAAANSUhEUgAA..."
 }
 ```
 
@@ -340,6 +414,7 @@ Chat files format: `chat_YYYYMMDD_HHMMSS_[ID].json`
 - **Express.js** - Web server framework
 - **Node.js** - Runtime environment
 - **CORS** - Cross-origin resource sharing
+- **Multer** - File upload handling
 
 ### Frontend
 - **Vanilla JavaScript (ES6 Modules)** - No framework dependencies
@@ -358,7 +433,8 @@ Chat files format: `chat_YYYYMMDD_HHMMSS_[ID].json`
 {
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.0" (optional)
@@ -435,6 +511,37 @@ const PORT = 3000; // Change to any available port
 2. Server running: `http://localhost:5000`
 3. `/cache` directory exists
 4. localStorage not disabled
+
+### Image Upload Not Working
+
+**Error**: `Failed to upload image`
+
+**Solution**:
+1. Check file size (max 10MB)
+2. Ensure file is an image (JPG, PNG, GIF, WebP)
+3. Check `/cache/library/uploads` directory exists
+4. Check browser console for errors
+5. Verify server has write permissions
+
+### Vision Model Not Analyzing Images
+
+**Ollama**:
+```bash
+# Make sure you have a vision model installed
+ollama list
+
+# If not, pull one
+ollama pull llava
+```
+
+**Gemini**:
+- Ensure API key is valid
+- Use vision-capable model: `gemini-2.5-flash-image`
+- Check API quota
+
+**OpenRouter**:
+- Use vision-capable model (Claude 3, GPT-4V)
+- Verify API key and credits
 
 ### Mobile Header Not Showing
 

@@ -1,5 +1,6 @@
 // API Calls for different providers
 import { getSettings } from './config.js';
+import { imageUrlToBase64 } from './image.js';
 
 // Build prompt from chat history
 export function buildPrompt(chatHistory) {
@@ -14,23 +15,37 @@ export function buildPrompt(chatHistory) {
   return prompt;
 }
 
-// Call Ollama API
-export async function callOllamaAPI(chatHistory) {
+// Call Ollama API with streaming support and optional image
+export async function callOllamaAPI(chatHistory, imageUrl = null, onChunk = null) {
   const settings = getSettings();
   
+  // Prepare request body
+  const requestBody = {
+    model: settings.modelName,
+    prompt: buildPrompt(chatHistory),
+    stream: !!onChunk,
+    options: {
+      temperature: settings.temperature,
+    },
+  };
+
+  // Add image if provided
+  if (imageUrl) {
+    try {
+      const base64Image = await imageUrlToBase64(imageUrl);
+      requestBody.images = [base64Image];
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+      throw new Error('Failed to process image');
+    }
+  }
+
   const response = await fetch(`${settings.ollamaUrl}/api/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: settings.modelName,
-      prompt: buildPrompt(chatHistory),
-      stream: false,
-      options: {
-        temperature: settings.temperature,
-      },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -38,12 +53,42 @@ export async function callOllamaAPI(chatHistory) {
     throw new Error(`Ollama Error ${response.status}: ${errorText}`);
   }
 
+  // Handle streaming response
+  if (onChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line);
+          if (json.response) {
+            fullResponse += json.response;
+            onChunk(json.response);
+          }
+        } catch (e) {
+          // JSON parse error, skip line
+        }
+      }
+    }
+
+    return fullResponse;
+  }
+
+  // Non-streaming response
   const data = await response.json();
   return data.response || "No response";
 }
 
-// Call Google Gemini API
-export async function callGeminiAPI(chatHistory) {
+// Call Google Gemini API with optional image support
+export async function callGeminiAPI(chatHistory, imageUrl = null, onChunk = null) {
   const settings = getSettings();
   
   if (!settings.geminiApiKey) {
@@ -63,6 +108,25 @@ export async function callGeminiAPI(chatHistory) {
     }
   }
 
+  // Build parts array
+  const parts = [{ text: prompt }];
+
+  // Add image if provided
+  if (imageUrl) {
+    try {
+      const base64Image = await imageUrlToBase64(imageUrl);
+      parts.unshift({
+        inline_data: {
+          mime_type: "image/jpeg",
+          data: base64Image
+        }
+      });
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+      throw new Error('Failed to process image');
+    }
+  }
+
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
@@ -70,9 +134,7 @@ export async function callGeminiAPI(chatHistory) {
     },
     body: JSON.stringify({
       contents: [{
-        parts: [{
-          text: prompt
-        }]
+        parts: parts
       }],
       generationConfig: {
         temperature: settings.temperature,
@@ -96,8 +158,8 @@ export async function callGeminiAPI(chatHistory) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
 }
 
-// Call OpenRouter API
-export async function callOpenRouterAPI(chatHistory) {
+// Call OpenRouter API with optional image support
+export async function callOpenRouterAPI(chatHistory, imageUrl = null, onChunk = null) {
   const settings = getSettings();
   
   if (!settings.openrouterApiKey) {
@@ -108,10 +170,39 @@ export async function callOpenRouterAPI(chatHistory) {
   const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
 
   // Convert chat history to OpenAI format
-  const messages = chatHistory.map(msg => ({
-    role: msg.role,
-    content: msg.content
-  }));
+  const messages = [];
+  
+  for (const msg of chatHistory) {
+    if (msg.role === "user" && imageUrl && chatHistory[chatHistory.length - 1] === msg) {
+      // Add image to the last user message
+      try {
+        const base64Image = await imageUrlToBase64(imageUrl);
+        messages.push({
+          role: msg.role,
+          content: [
+            {
+              type: "text",
+              text: msg.content
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        });
+      } catch (error) {
+        console.error('Failed to convert image to base64:', error);
+        throw new Error('Failed to process image');
+      }
+    } else {
+      messages.push({
+        role: msg.role,
+        content: msg.content
+      });
+    }
+  }
 
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -119,7 +210,7 @@ export async function callOpenRouterAPI(chatHistory) {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${settings.openrouterApiKey}`,
       "HTTP-Referer": window.location.origin,
-      "X-Title": "Llama Chat Interface",
+      "X-Title": "Web Chat Interface",
     },
     body: JSON.stringify({
       model: model,
@@ -138,17 +229,17 @@ export async function callOpenRouterAPI(chatHistory) {
   return data.choices?.[0]?.message?.content || "No response";
 }
 
-// Main API caller - routes to correct provider
-export async function callAI(chatHistory) {
+// Main API caller - routes to correct provider with optional image and streaming
+export async function callAI(chatHistory, imageUrl = null, onChunk = null) {
   const settings = getSettings();
   
   switch (settings.provider) {
     case "ollama":
-      return await callOllamaAPI(chatHistory);
+      return await callOllamaAPI(chatHistory, imageUrl, onChunk);
     case "gemini":
-      return await callGeminiAPI(chatHistory);
+      return await callGeminiAPI(chatHistory, imageUrl, onChunk);
     case "openrouter":
-      return await callOpenRouterAPI(chatHistory);
+      return await callOpenRouterAPI(chatHistory, imageUrl, onChunk);
     default:
       throw new Error(`Unknown provider: ${settings.provider}`);
   }

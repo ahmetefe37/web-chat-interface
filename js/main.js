@@ -39,6 +39,13 @@ import {
   refreshHTMLPreview,
   closeHTMLPreview,
 } from './markdown.js';
+import {
+  uploadImage,
+  setCurrentImage,
+  getCurrentImage,
+  clearCurrentImage,
+  hasImage,
+} from './image.js';
 
 // DOM Elements
 const elements = {
@@ -90,6 +97,11 @@ const elements = {
   attachFileBtn: document.getElementById("attachFileBtn"),
   webSearchBtn: document.getElementById("webSearchBtn"),
   fileInput: document.getElementById("fileInput"),
+  
+  // Image preview
+  imagePreviewContainer: document.getElementById("imagePreviewContainer"),
+  imagePreview: document.getElementById("imagePreview"),
+  removeImageBtn: document.getElementById("removeImageBtn"),
 };
 
 // Initialize UI elements in modules
@@ -136,7 +148,7 @@ async function init() {
     const currentChat = getAllChats()[chatId];
     if (currentChat && currentChat.messages) {
       currentChat.messages.forEach(msg => {
-        addMessage(msg.role, msg.content);
+        addMessage(msg.role, msg.content, msg.imageUrl);
       });
     }
   }
@@ -162,18 +174,23 @@ function updateSettingsUI() {
   document.getElementById("tempValue").textContent = settings.temperature;
 }
 
-// Send message
+// Send message with optional image
 async function sendMessage() {
   const message = elements.messageInput.value.trim();
-  if (!message) return;
+  if (!message && !hasImage()) return;
 
-  // Add user message
-  addMessage("user", message);
-  addMessageToChat("user", message);
+  // Get current image if attached
+  const currentImage = getCurrentImage();
+  const imageUrl = currentImage ? currentImage.url : null;
 
-  // Clear input
+  // Add user message with image
+  addMessage("user", message, imageUrl);
+  addMessageToChat("user", message, imageUrl);
+
+  // Clear input and image
   elements.messageInput.value = "";
   elements.messageInput.style.height = "auto";
+  clearImagePreview();
 
   // Save to storage
   saveChatToLocalStorage();
@@ -186,16 +203,55 @@ async function sendMessage() {
   elements.sendBtn.disabled = true;
 
   try {
-    // Call AI based on provider
+    // Call AI with streaming support
     const chatHist = getChatHistory();
-    const response = await callAI(chatHist);
+    const settings = getSettings();
+    
+    // Create a message element for streaming
+    let streamingMessageDiv = null;
+    let streamingContentDiv = null;
+    let fullResponse = '';
+    
+    // Streaming callback
+    const onChunk = (chunk) => {
+      if (!streamingMessageDiv) {
+        // Remove typing indicator and create message element
+        removeTypingIndicator(typingId);
+        
+        streamingMessageDiv = document.createElement("div");
+        streamingMessageDiv.className = "message assistant";
+        
+        streamingContentDiv = document.createElement("div");
+        streamingContentDiv.className = "message-content";
+        
+        const textDiv = document.createElement("div");
+        textDiv.className = "message-text";
+        streamingContentDiv.appendChild(textDiv);
+        
+        streamingMessageDiv.appendChild(streamingContentDiv);
+        elements.messagesContainer.appendChild(streamingMessageDiv);
+      }
+      
+      fullResponse += chunk;
+      const textDiv = streamingContentDiv.querySelector('.message-text');
+      textDiv.innerHTML = marked.parse(fullResponse);
+      
+      // Auto-scroll
+      elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+    };
+    
+    // Call AI with image and streaming
+    const response = await callAI(chatHist, imageUrl, settings.provider === "ollama" ? onChunk : null);
 
-    // Remove typing indicator
-    removeTypingIndicator(typingId);
-
-    // Add AI response
-    addMessage("assistant", response);
-    addMessageToChat("assistant", response);
+    // If not streaming (Gemini/OpenRouter), show response normally
+    if (!streamingMessageDiv) {
+      removeTypingIndicator(typingId);
+      addMessage("assistant", response);
+      addMessageToChat("assistant", response);
+    } else {
+      // Add final response to chat history
+      addMessageToChat("assistant", fullResponse);
+    }
 
     // Save to storage
     saveChatToLocalStorage();
@@ -264,7 +320,7 @@ window.onChatHistoryItemClick = (chatId) => {
   const currentChat = getAllChats()[chatId];
   if (currentChat && currentChat.messages) {
     currentChat.messages.forEach(msg => {
-      addMessage(msg.role, msg.content);
+      addMessage(msg.role, msg.content, msg.imageUrl);
     });
   }
   
@@ -445,7 +501,7 @@ window.onLoadSavedChat = async (chatId) => {
     clearMessagesUI();
     
     chatData.messages.forEach(msg => {
-      addMessage(msg.role, msg.content);
+      addMessage(msg.role, msg.content, msg.imageUrl);
     });
     
     setCurrentChatId(chatData.id);
@@ -515,20 +571,62 @@ if (elements.mobileSettingsBtn) {
   });
 }
 
-// File attachment
+// Clear image preview
+function clearImagePreview() {
+  elements.imagePreviewContainer.style.display = "none";
+  elements.imagePreview.src = "";
+  clearCurrentImage();
+  elements.fileInput.value = "";
+}
+
+// Show image preview
+function showImagePreview(imageUrl) {
+  elements.imagePreview.src = imageUrl;
+  elements.imagePreviewContainer.style.display = "block";
+}
+
+// File attachment (image upload)
 elements.attachFileBtn.addEventListener("click", () => {
   elements.fileInput.click();
 });
 
-elements.fileInput.addEventListener("change", (e) => {
-  const files = Array.from(e.target.files);
-  attachedFiles = files;
+elements.fileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
   
-  if (files.length > 0) {
-    elements.messageInput.placeholder = `${files.length} file(s) attached. Type your message...`;
-  } else {
-    elements.messageInput.placeholder = "Type your message...";
+  if (!file) {
+    clearImagePreview();
+    return;
   }
+  
+  // Check if file is an image
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file');
+    clearImagePreview();
+    return;
+  }
+  
+  try {
+    // Upload image to server
+    const uploadResult = await uploadImage(file);
+    
+    // Store image data
+    setCurrentImage(uploadResult);
+    
+    // Show preview
+    showImagePreview(uploadResult.url);
+    
+    // Focus on input
+    elements.messageInput.focus();
+  } catch (error) {
+    console.error('Image upload error:', error);
+    alert('Failed to upload image. Please try again.');
+    clearImagePreview();
+  }
+});
+
+// Remove image button
+elements.removeImageBtn.addEventListener("click", () => {
+  clearImagePreview();
 });
 
 // Web search toggle
