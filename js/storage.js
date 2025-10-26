@@ -46,9 +46,18 @@ export async function saveChatToServer(chatId) {
   }
   
   try {
-    // Don't save empty or too short chats
-    if (!chat.messages || chat.messages.length < 2) {
-      console.log('saveChatToServer: Chat too short, not saving:', chat.messages?.length);
+    // Only save when we have both user and assistant messages (interaction happened)
+    if (!chat.messages || chat.messages.length === 0) {
+      console.log('saveChatToServer: Chat has no messages, not saving');
+      return;
+    }
+    
+    // Check if we have both user and assistant messages
+    const hasUser = chat.messages.some(msg => msg.role === 'user');
+    const hasAssistant = chat.messages.some(msg => msg.role === 'assistant');
+    
+    if (!hasUser || !hasAssistant) {
+      console.log('saveChatToServer: Chat incomplete - hasUser:', hasUser, 'hasAssistant:', hasAssistant);
       return;
     }
     
@@ -74,9 +83,10 @@ export async function saveChatToServer(chatId) {
     if (response.ok) {
       const result = await response.json();
       chat.lastServerSave = now;
-      console.log(`saveChatToServer: Success! ${result.updated ? 'Updated' : 'Created'} ${result.filename}`);
+      console.log(`✅ saveChatToServer: Success! ${result.updated ? 'Updated' : 'Created'} ${result.filename}`);
     } else {
-      console.error(`saveChatToServer: Failed with status ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ saveChatToServer: Failed with status ${response.status}:`, errorText);
     }
   } catch (error) {
     console.error("saveChatToServer: Error:", error);
@@ -135,22 +145,52 @@ export async function syncChatsWithServer() {
     
     console.log(`✅ Successfully loaded ${loadedCount} chats from cache`);
     
+    // Get current chat ID BEFORE setting allChats
+    const currentChatId = getCurrentChatId();
+    const savedChatId = localStorage.getItem("llamaCurrentChatId");
+    
+    // Preserve current in-memory chat if it exists and is newer
+    let currentInMemoryChat = null;
+    if (currentChatId) {
+      const allChats = getAllChats();
+      if (allChats[currentChatId]) {
+        currentInMemoryChat = allChats[currentChatId];
+        console.log('💾 Preserving in-memory current chat:', currentChatId);
+      }
+    }
+    
     // Update allChats with server data
     setAllChats(fullChats);
     
+    // If we had an in-memory current chat that's newer, keep it
+    if (currentInMemoryChat && (!fullChats[currentChatId] || 
+        currentInMemoryChat.messages.length > (fullChats[currentChatId]?.messages.length || 0))) {
+      const updatedChats = getAllChats();
+      updatedChats[currentChatId] = currentInMemoryChat;
+      setAllChats(updatedChats);
+      console.log('✅ Kept current in-memory chat, it has more messages');
+    }
+    
+    // Set current chat ID
+    const chatIdToUse = currentChatId || savedChatId;
+    if (chatIdToUse && fullChats[chatIdToUse]) {
+      setCurrentChatId(chatIdToUse);
+    } else if (chatIdToUse) {
+      console.log('⚠️ Current chat ID not in server cache:', chatIdToUse);
+      // Check if we have this chat in allChats (before syncing)
+      if (currentChatId && currentInMemoryChat) {
+        // Add it to fullChats so it doesn't get lost
+        fullChats[currentChatId] = currentInMemoryChat;
+        setAllChats(fullChats);
+        setCurrentChatId(currentChatId);
+        console.log('✅ Added current chat to synced chats:', currentChatId);
+      } else {
+        // Keep the ID anyway - it will be saved when it has messages
+      }
+    }
+    
     // Save to localStorage as backup
     saveChatToLocalStorage();
-    
-    // Get current chat ID from localStorage
-    const currentChatId = localStorage.getItem("llamaCurrentChatId");
-    
-    // If current chat doesn't exist in server chats, start new chat
-    if (currentChatId && !fullChats[currentChatId]) {
-      console.log('⚠️ Current chat not in cache, will start new chat');
-      setCurrentChatId(null);
-    } else if (currentChatId) {
-      setCurrentChatId(currentChatId);
-    }
     
     console.log('✅ Chat synchronization complete!');
     return true;

@@ -20,16 +20,34 @@ const app = express();
 const PORT = 5000;
 const OLLAMA_URL = 'http://127.0.0.1:11434';
 const CACHE_DIR = join(__dirname, 'cache');
+const HISTORY_DIR = join(__dirname, 'cache', 'history');
 const UPLOADS_DIR = join(__dirname, 'cache', 'library', 'uploads');
+const CONFIG_DIR = join(__dirname, 'cache', 'config');
+const ENV_FILE = join(CONFIG_DIR, '.env');
 
-// Ensure upload directory exists
-async function ensureUploadDir() {
+// Ensure directories exist
+async function ensureDirectories() {
+    if (!existsSync(HISTORY_DIR)) {
+        await fs.mkdir(HISTORY_DIR, { recursive: true });
+        console.log(`Created history directory: ${HISTORY_DIR}`);
+    }
     if (!existsSync(UPLOADS_DIR)) {
         await fs.mkdir(UPLOADS_DIR, { recursive: true });
         console.log(`Created uploads directory: ${UPLOADS_DIR}`);
     }
+    if (!existsSync(CONFIG_DIR)) {
+        await fs.mkdir(CONFIG_DIR, { recursive: true });
+        console.log(`Created config directory: ${CONFIG_DIR}`);
+    }
 }
-ensureUploadDir();
+ensureDirectories();
+
+// Ensure upload directory exists (for multer)
+async function ensureUploadDir() {
+    if (!existsSync(UPLOADS_DIR)) {
+        await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    }
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -411,14 +429,17 @@ app.post('/api/chats/save', async (req, res) => {
             return res.status(400).json({ error: 'Chat ID is required' });
         }
 
-        // Ensure cache directory exists
-        if (!existsSync(CACHE_DIR)) {
-            await fs.mkdir(CACHE_DIR, { recursive: true });
+        console.log('💾 Saving chat:', chatId);
+        console.log('Messages:', data.messages?.length || 0);
+
+        // Ensure history directory exists
+        if (!existsSync(HISTORY_DIR)) {
+            await fs.mkdir(HISTORY_DIR, { recursive: true });
         }
 
         // Check if chat already exists
         let existingFile = null;
-        const files = await fs.readdir(CACHE_DIR);
+        const files = await fs.readdir(HISTORY_DIR);
         for (const file of files) {
             if (file.endsWith(`_${chatId}.json`)) {
                 existingFile = file;
@@ -430,13 +451,15 @@ app.post('/api/chats/save', async (req, res) => {
         if (existingFile) {
             // Update existing chat
             filename = existingFile;
+            console.log('📝 Updating existing chat:', filename);
         } else {
             // Create new chat with timestamp
             const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0].replace('T', '_');
             filename = `chat_${timestamp}_${chatId}.json`;
+            console.log('✨ Creating new chat:', filename);
         }
 
-        const filepath = join(CACHE_DIR, filename);
+        const filepath = join(HISTORY_DIR, filename);
 
         // Add server-side metadata
         const chatData = {
@@ -453,6 +476,8 @@ app.post('/api/chats/save', async (req, res) => {
         // Save to file (overwrite if exists)
         await fs.writeFile(filepath, JSON.stringify(chatData, null, 2), 'utf-8');
 
+        console.log('✅ Chat saved successfully:', filename);
+
         res.json({
             success: true,
             filename: filename,
@@ -461,7 +486,7 @@ app.post('/api/chats/save', async (req, res) => {
             updated: !!existingFile,
         });
     } catch (error) {
-        console.error('Save chat error:', error);
+        console.error('❌ Save chat error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -469,17 +494,17 @@ app.post('/api/chats/save', async (req, res) => {
 // List all saved chats
 app.get('/api/chats/list', async (req, res) => {
     try {
-        // Ensure cache directory exists
-        if (!existsSync(CACHE_DIR)) {
-            await fs.mkdir(CACHE_DIR, { recursive: true });
+        // Ensure history directory exists
+        if (!existsSync(HISTORY_DIR)) {
+            await fs.mkdir(HISTORY_DIR, { recursive: true });
         }
 
-        const files = await fs.readdir(CACHE_DIR);
+        const files = await fs.readdir(HISTORY_DIR);
         const chatMap = new Map(); // Use Map to store unique chats by ID
 
         for (const filename of files) {
             if (filename.endsWith('.json') && filename.startsWith('chat_')) {
-                const filepath = join(CACHE_DIR, filename);
+                const filepath = join(HISTORY_DIR, filename);
                 try {
                     const fileContent = await fs.readFile(filepath, 'utf-8');
                     const chatData = JSON.parse(fileContent);
@@ -528,12 +553,12 @@ app.get('/api/chats/list', async (req, res) => {
 app.get('/api/chats/load/:chat_id', async (req, res) => {
     try {
         const chatId = req.params.chat_id;
-        const files = await fs.readdir(CACHE_DIR);
+        const files = await fs.readdir(HISTORY_DIR);
 
         // Find the chat file
         for (const filename of files) {
             if (filename.endsWith(`_${chatId}.json`)) {
-                const filepath = join(CACHE_DIR, filename);
+                const filepath = join(HISTORY_DIR, filename);
                 const fileContent = await fs.readFile(filepath, 'utf-8');
                 const chatData = JSON.parse(fileContent);
                 return res.json(chatData);
@@ -551,15 +576,16 @@ app.get('/api/chats/load/:chat_id', async (req, res) => {
 app.delete('/api/chats/delete/:chat_id', async (req, res) => {
     try {
         const chatId = req.params.chat_id;
-        const files = await fs.readdir(CACHE_DIR);
+        const files = await fs.readdir(HISTORY_DIR);
         let deletedCount = 0;
 
         // Find and delete ALL files with this chat ID (handles duplicates)
         for (const filename of files) {
             if (filename.endsWith(`_${chatId}.json`)) {
-                const filepath = join(CACHE_DIR, filename);
+                const filepath = join(HISTORY_DIR, filename);
                 await fs.unlink(filepath);
                 deletedCount++;
+                console.log('🗑️ Deleted chat file:', filename);
             }
         }
 
@@ -582,17 +608,17 @@ app.delete('/api/chats/delete/:chat_id', async (req, res) => {
 // Clean up duplicate chat files (keep only the newest for each chat ID)
 app.post('/api/chats/cleanup', async (req, res) => {
     try {
-        if (!existsSync(CACHE_DIR)) {
-            return res.json({ message: 'Cache directory does not exist', cleaned: 0 });
+        if (!existsSync(HISTORY_DIR)) {
+            return res.json({ message: 'History directory does not exist', cleaned: 0 });
         }
 
-        const files = await fs.readdir(CACHE_DIR);
+        const files = await fs.readdir(HISTORY_DIR);
         const chatGroups = new Map(); // Group files by chat ID
 
         // Group all files by chat ID
         for (const filename of files) {
             if (filename.endsWith('.json') && filename.startsWith('chat_')) {
-                const filepath = join(CACHE_DIR, filename);
+                const filepath = join(HISTORY_DIR, filename);
                 try {
                     const fileContent = await fs.readFile(filepath, 'utf-8');
                     const chatData = JSON.parse(fileContent);
@@ -641,14 +667,224 @@ app.post('/api/chats/cleanup', async (req, res) => {
     }
 });
 
+// ========================================
+// API KEY MANAGEMENT (.env file)
+// ========================================
+
+// Save API keys to .env file
+app.post('/api/config/save-keys', async (req, res) => {
+    try {
+        const { geminiApiKey, openrouterApiKey } = req.body;
+        
+        console.log('💾 Saving API keys to .env file...');
+        
+        // Ensure config directory exists
+        if (!existsSync(CONFIG_DIR)) {
+            await fs.mkdir(CONFIG_DIR, { recursive: true });
+        }
+        
+        // Read existing .env if it exists
+        let envContent = '';
+        if (existsSync(ENV_FILE)) {
+            envContent = await fs.readFile(ENV_FILE, 'utf-8');
+        }
+        
+        // Parse existing content and update
+        const lines = envContent.split('\n');
+        let newContent = '';
+        let foundGemini = false;
+        let foundOpenRouter = false;
+        
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine && !trimmedLine.startsWith('#')) {
+                const [key, ...valueParts] = trimmedLine.split('=');
+                if (key === 'GEMINI_API_KEY') {
+                    foundGemini = true;
+                    if (geminiApiKey !== undefined) {
+                        newContent += `GEMINI_API_KEY=${geminiApiKey}\n`;
+                    }
+                } else if (key === 'OPENROUTER_API_KEY') {
+                    foundOpenRouter = true;
+                    if (openrouterApiKey !== undefined) {
+                        newContent += `OPENROUTER_API_KEY=${openrouterApiKey}\n`;
+                    }
+                } else if (key.startsWith('OPENROUTER_CUSTOM_MODEL_')) {
+                    // Keep custom models
+                    newContent += line + '\n';
+                }
+            }
+        }
+        
+        // Add new API keys if not found
+        if (geminiApiKey !== undefined && !foundGemini) {
+            newContent += `GEMINI_API_KEY=${geminiApiKey}\n`;
+        }
+        
+        if (openrouterApiKey !== undefined && !foundOpenRouter) {
+            newContent += `OPENROUTER_API_KEY=${openrouterApiKey}\n`;
+        }
+        
+        // Write to .env file
+        await fs.writeFile(ENV_FILE, newContent.trim() + '\n', 'utf-8');
+        
+        console.log('✅ API keys saved to:', ENV_FILE);
+        
+        res.json({
+            success: true,
+            message: 'API keys saved successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error saving API keys:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Save custom OpenRouter models
+app.post('/api/config/save-custom-models', async (req, res) => {
+    try {
+        const { models } = req.body; // Array of model objects [{name, value}]
+        
+        console.log('💾 Saving custom OpenRouter models...');
+        
+        // Ensure config directory exists
+        if (!existsSync(CONFIG_DIR)) {
+            await fs.mkdir(CONFIG_DIR, { recursive: true });
+        }
+        
+        // Read existing .env if it exists
+        let envContent = '';
+        if (existsSync(ENV_FILE)) {
+            envContent = await fs.readFile(ENV_FILE, 'utf-8');
+        }
+        
+        // Parse existing content
+        const lines = envContent.split('\n');
+        let newContent = '';
+        
+        // Keep non-custom-model lines
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('#')) {
+                continue;
+            }
+            const [key] = trimmedLine.split('=');
+            if (!key.startsWith('OPENROUTER_CUSTOM_MODEL_')) {
+                newContent += line + '\n';
+            }
+        }
+        
+        // Add custom models
+        if (models && Array.isArray(models)) {
+            for (let i = 0; i < models.length; i++) {
+                const model = models[i];
+                if (model.name && model.value) {
+                    newContent += `OPENROUTER_CUSTOM_MODEL_${i}=${model.name}|${model.value}\n`;
+                }
+            }
+        }
+        
+        // Write to .env file
+        await fs.writeFile(ENV_FILE, newContent.trim() + '\n', 'utf-8');
+        
+        console.log(`✅ Saved ${models?.length || 0} custom models to .env`);
+        
+        res.json({
+            success: true,
+            message: 'Custom models saved successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error saving custom models:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Load API keys from .env file
+app.get('/api/config/load-keys', async (req, res) => {
+    try {
+        console.log('📂 Loading API keys and custom models from .env file...');
+        
+        // Check if .env file exists
+        if (!existsSync(ENV_FILE)) {
+            console.log('⚠️ .env file not found');
+            return res.json({
+                success: true,
+                keys: {
+                    geminiApiKey: '',
+                    openrouterApiKey: ''
+                },
+                customModels: []
+            });
+        }
+        
+        // Read .env file
+        const envContent = await fs.readFile(ENV_FILE, 'utf-8');
+        
+        // Parse .env content
+        const keys = {
+            geminiApiKey: '',
+            openrouterApiKey: ''
+        };
+        const customModels = [];
+        
+        const lines = envContent.split('\n');
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine && !trimmedLine.startsWith('#')) {
+                const [key, ...valueParts] = trimmedLine.split('=');
+                const value = valueParts.join('=').trim();
+                
+                if (key === 'GEMINI_API_KEY') {
+                    keys.geminiApiKey = value;
+                } else if (key === 'OPENROUTER_API_KEY') {
+                    keys.openrouterApiKey = value;
+                } else if (key.startsWith('OPENROUTER_CUSTOM_MODEL_')) {
+                    // Parse custom model: format is "name|value"
+                    const [name, modelValue] = value.split('|');
+                    customModels.push({
+                        name: name || value,
+                        value: modelValue || value
+                    });
+                }
+            }
+        }
+        
+        console.log(`✅ Loaded ${customModels.length} custom models from .env`);
+        
+        res.json({
+            success: true,
+            keys: keys,
+            customModels: customModels
+        });
+    } catch (error) {
+        console.error('❌ Error loading config:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log('='.repeat(50));
     console.log('Initializing Web Chat Interface Server');
     console.log('='.repeat(50));
     console.log(`Server URL: http://localhost:${PORT}`);
     console.log(`Ollama URL: ${OLLAMA_URL}`);
     console.log(`Cache Directory: ${CACHE_DIR}`);
+    console.log(`History Directory: ${HISTORY_DIR}`);
+    console.log(`Config Directory: ${CONFIG_DIR}`);
+    
+    // Ensure all directories exist on startup
+    await ensureDirectories();
+    console.log('Directory structure verified');
     console.log('='.repeat(50));
 });
 

@@ -320,14 +320,38 @@
                             <small class="setting-hint">Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></small>
                         </div>
                         <div class="setting-group">
-                            <label for="openrouterModel">Model</label>
-                            <input
-                                type="text"
-                                id="openrouterModel"
-                                placeholder="e.g., anthropic/claude-3-opus"
-                                value="anthropic/claude-3-opus"
-                            />
+                            <label for="openrouterModelSelect">Model</label>
+                            <select id="openrouterModelSelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
                             <small class="setting-hint">Browse models at <a href="https://openrouter.ai/models" target="_blank">OpenRouter Models</a></small>
+                        </div>
+                        <div class="setting-group">
+                            <label>Add Custom Model</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input
+                                    type="text"
+                                    id="openrouterCustomModelName"
+                                    placeholder="Model name (e.g., GPT-5 Pro)"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);"
+                                />
+                                <input
+                                    type="text"
+                                    id="openrouterCustomModelValue"
+                                    placeholder="openai/gpt-5-pro"
+                                    style="flex: 2; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);"
+                                />
+                                <button
+                                    type="button"
+                                    id="addCustomModelBtn"
+                                    style="padding: 8px 16px; border-radius: 6px; border: 1px solid var(--accent-color); background: var(--accent-color); color: white; cursor: pointer; white-space: nowrap;"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            <div id="customModelsList" style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+                                <!-- Custom models will be listed here -->
+                            </div>
                         </div>
                     </div>
 

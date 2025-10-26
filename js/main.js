@@ -1,5 +1,5 @@
 // Main Application - Entry Point
-import { loadSettings, saveSettings, getSettings, updateSetting } from './config.js';
+import { loadSettings, saveSettings, getSettings, updateSetting, getCustomModels, addCustomModel, removeCustomModel, saveCustomModels } from './config.js';
 import { callAI, fetchOllamaModels } from './api.js';
 import {
   getChatHistory,
@@ -77,6 +77,11 @@ const elements = {
   geminiModelSelect: document.getElementById("geminiModel"),
   openrouterApiKeyInput: document.getElementById("openrouterApiKey"),
   openrouterModelInput: document.getElementById("openrouterModel"),
+  openrouterModelSelect: document.getElementById("openrouterModelSelect"),
+  addCustomModelBtn: document.getElementById("addCustomModelBtn"),
+  openrouterCustomModelName: document.getElementById("openrouterCustomModelName"),
+  openrouterCustomModelValue: document.getElementById("openrouterCustomModelValue"),
+  customModelsList: document.getElementById("customModelsList"),
   refreshModelsBtn: document.getElementById("refreshModels"),
   modelInfo: document.getElementById("modelInfo"),
   
@@ -150,8 +155,8 @@ Object.defineProperty(window, '__currentChatId', {
 async function init() {
   console.log('🚀 Initializing Web Chat Interface...');
   
-  // Load settings
-  loadSettings();
+  // Load settings (async now - loads from .env)
+  await loadSettings();
   
   // 🔄 SYNC: Load all chats from cache folder (Single Source of Truth)
   console.log('📂 Synchronizing chats from cache folder...');
@@ -159,7 +164,7 @@ async function init() {
   
   if (!syncSuccess) {
     console.warn('⚠️ Cache sync failed, falling back to localStorage');
-    loadChatsFromLocalStorage();
+  loadChatsFromLocalStorage();
   }
   
   // Update UI
@@ -179,9 +184,7 @@ async function init() {
   if (!chatId) {
     console.log('📝 No active chat, starting new chat...');
     startNewChat();
-    // 🔄 SYNC: Save new chat immediately
-    await saveChatToServer(getCurrentChatId());
-    await syncChatsWithServer();
+    // Don't save empty chat - will save after first message
     updateChatHistoryUI();
   } else {
     // Restore current chat messages
@@ -204,6 +207,63 @@ async function init() {
 }
 
 // Update settings UI from current settings
+// Predefined OpenRouter models
+const predefinedOpenRouterModels = [
+  { name: 'OpenAI GPT-4o', value: 'openai/gpt-4o' },
+  { name: 'Anthropic Claude 3.5 Sonnet', value: 'anthropic/claude-3.5-sonnet' },
+  { name: 'Google Gemini 2.5 Pro', value: 'google/gemini-2.5-pro' },
+  { name: 'Meta Llama 4 Maverick (Free)', value: 'meta-llama/llama-4-maverick:free' },
+  { name: 'X.AI Grok 4 Fast', value: 'x-ai/grok-4-fast' },
+  { name: 'Anthropic Claude Sonnet 4.5', value: 'anthropic/claude-sonnet-4.5' },
+  { name: 'Google Gemini 2.5 Flash', value: 'google/gemini-2.5-flash' },
+  { name: 'DeepSeek V3', value: 'deepseek/deepseek-chat' },
+  { name: 'OpenAI GPT-5 Pro', value: 'openai/gpt-5-pro' },
+  { name: 'Z.AI GLM 4.6', value: 'z-ai/glm-4.6' },
+  { name: 'Anthropic Claude Haiku 4.5', value: 'anthropic/claude-haiku-4.5' },
+  { name: 'Google Gemini 2.0 Flash', value: 'google/gemini-2.0-flash-001' },
+  { name: 'X.AI Grok Code Fast', value: 'x-ai/grok-code-fast-1' },
+  { name: 'Google Gemini 2.5 Flash Lite', value: 'google/gemini-2.5-flash-lite' },
+  { name: 'Anthropic Claude Sonnet 4', value: 'anthropic/claude-sonnet-4' },
+  { name: 'Mistral Small 3.1 (Free)', value: 'mistralai/mistral-small-3.1-24b-instruct:free' },
+  { name: 'Qwen3 VL 32B', value: 'qwen/qwen3-vl-32b-instruct' },
+  { name: 'Meta Llama 3.3 Nemotron Super 49B', value: 'nvidia/llama-3.3-nemotron-super-49b-v1.5' },
+  { name: 'OpenAI GPT-4o Mini', value: 'openai/gpt-4o-mini' },
+  { name: 'Dolphin (Free)', value: 'cognitivecomputations/dolphin3.0-mistral-24b:free' },
+  { name: 'DeepSeek R1 0528 (Free)', value: 'deepseek/deepseek-r1-0528:free' },
+  { name: 'DeepSeek R1T2 Chimera (Free)', value: 'tngtech/deepseek-r1t2-chimera:free' },
+  { name: 'Z.AI GLM 4.5 Air (Free)', value: 'z-ai/glm-4.5-air:free' },
+  { name: 'Meituan LongCat Flash Chat (Free)', value: 'meituan/longcat-flash-chat:free' },
+  { name: 'Microsoft Mai DS R1 (Free)', value: 'microsoft/mai-ds-r1:free' },
+  { name: 'OpenAI GPT-OSS 20B (Free)', value: 'openai/gpt-oss-20b:free' },
+  { name: 'Qwen3 235B (Free)', value: 'qwen/qwen3-235b-a22b:free' },
+  { name: 'InclusionAI Ring 1T', value: 'inclusionai/ring-1t' },
+  { name: 'OpenAI O3 Deep Research', value: 'openai/o3-deep-research' },
+  { name: 'IBM Granite 4.0 Micro', value: 'ibm-granite/granite-4.0-h-micro' },
+  { name: 'Qwen3 VL 8B Thinking', value: 'qwen/qwen3-vl-8b-thinking' },
+  { name: 'DeepSeek Chat V3 (Free)', value: 'deepseek/deepseek-chat-v3-0324:free' },
+  { name: 'Google Gemini 2.5 Pro Experimental (Free)', value: 'google/gemini-2.5-pro' },
+  { name: 'OpenRouter Sonoma Dusk Alpha', value: 'openrouter/andromeda-alpha' },
+  { name: 'Switchpoint Kimi K2 (Free)', value: 'moonshotai/kimi-k2:free' },
+  { name: 'Switchpoint Kimi K2', value: 'moonshotai/kimi-k2-0905' },
+  { name: 'Meta Llama 4 Scout', value: 'meta-llama/llama-4-scout' },
+  { name: 'Meta Llama 4 Scout (Free)', value: 'meta-llama/llama-4-scout:free' },
+  { name: 'Baidu Ernie 4.5 21B', value: 'baidu/ernie-4.5-21b-a3b' },
+  { name: 'OpenAI GPT-5 Image', value: 'openai/gpt-5-image' },
+  { name: 'LiquidAI LFM2 8B', value: 'liquid/lfm2-8b-a1b' },
+  { name: 'Deep Cogito V2 Preview Llama 405B', value: 'deepcogito/cogito-v2-preview-llama-405b' },
+  { name: 'OpenAI GPT-5 Image Mini', value: 'openai/gpt-5-image-mini' },
+  { name: 'Qwen3 Coder Plus', value: 'qwen/qwen3-coder-plus' },
+  { name: 'OpenAI GPT-5 Codex', value: 'openai/gpt-5-codex' },
+  { name: 'OpenRouter Andromeda Alpha', value: 'openrouter/andromeda-alpha' },
+  { name: 'Google Gemini 2.5 Flash Image Preview', value: 'google/gemini-2.5-flash-image-preview' },
+  { name: 'Anthropic Claude 3.5 Haiku', value: 'anthropic/claude-3.5-haiku' },
+  { name: 'Qwen3 Coder 480B', value: 'qwen/qwen3-coder' },
+  { name: 'Qwen3 Coder 480B (Free)', value: 'qwen/qwen3-coder:free' },
+  { name: 'DeepSeek R1T Chimera (Free)', value: 'tngtech/deepseek-r1t-chimera:free' },
+  { name: 'DeepSeek R1 (Free)', value: 'deepseek/deepseek-r1:free' },
+  { name: 'OpenAI GPT-4o (2024-11-20)', value: 'openai/gpt-4o-2024-11-20' },
+];
+
 function updateSettingsUI() {
   const settings = getSettings();
   elements.providerSelect.value = settings.provider || "ollama";
@@ -212,10 +272,119 @@ function updateSettingsUI() {
   elements.geminiApiKeyInput.value = settings.geminiApiKey || "";
   elements.geminiModelSelect.value = settings.geminiModel || "gemini-2.5-pro";
   elements.openrouterApiKeyInput.value = settings.openrouterApiKey || "";
-  elements.openrouterModelInput.value = settings.openrouterModel || "anthropic/claude-3-opus";
+  
+  // Populate OpenRouter model select
+  populateOpenRouterModels();
+  
+  // Set current model
+  if (elements.openrouterModelSelect) {
+    elements.openrouterModelSelect.value = settings.openrouterModel || "anthropic/claude-3-opus";
+  }
+  
   document.getElementById("temperature").value = settings.temperature;
   document.getElementById("tempValue").textContent = settings.temperature;
+  
+  // Update custom models list
+  updateCustomModelsList();
 }
+
+function populateOpenRouterModels() {
+  if (!elements.openrouterModelSelect) return;
+  
+  // Clear existing options
+  elements.openrouterModelSelect.innerHTML = '';
+  
+  // Add predefined models
+  predefinedOpenRouterModels.forEach(model => {
+    const option = document.createElement('option');
+    option.value = model.value;
+    option.textContent = model.name;
+    elements.openrouterModelSelect.appendChild(option);
+  });
+  
+  // Add custom models
+  const customModels = getCustomModels();
+  if (customModels.length > 0) {
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '--- Custom Models ---';
+    elements.openrouterModelSelect.appendChild(separator);
+    
+    customModels.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.value;
+      option.textContent = model.name;
+      elements.openrouterModelSelect.appendChild(option);
+    });
+  }
+}
+
+function updateCustomModelsList() {
+  if (!elements.customModelsList) return;
+  
+  elements.customModelsList.innerHTML = '';
+  
+  const customModels = getCustomModels();
+  customModels.forEach((model, index) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 8px; background: var(--bg-secondary); border-radius: 4px; gap: 8px;';
+    
+    const info = document.createElement('div');
+    info.style.cssText = 'flex: 1; min-width: 0;';
+    
+    const name = document.createElement('div');
+    name.textContent = model.name;
+    name.style.cssText = 'font-weight: 600; color: var(--text-primary);';
+    
+    const value = document.createElement('div');
+    value.textContent = model.value;
+    value.style.cssText = 'font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+    
+    info.appendChild(name);
+    info.appendChild(value);
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = 'padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-size: 12px; flex-shrink: 0;';
+    removeBtn.onclick = async () => {
+      await removeCustomModel(index);
+      updateCustomModelsList();
+      populateOpenRouterModels();
+      const settings = getSettings();
+      if (settings.provider === 'openrouter') {
+        elements.openrouterModelSelect.value = settings.openrouterModel;
+      }
+    };
+    
+    item.appendChild(info);
+    item.appendChild(removeBtn);
+    elements.customModelsList.appendChild(item);
+  });
+}
+
+// Add custom model button
+elements.addCustomModelBtn?.addEventListener("click", async () => {
+  const name = elements.openrouterCustomModelName?.value?.trim();
+  const value = elements.openrouterCustomModelValue?.value?.trim();
+  
+  if (!name || !value) {
+    alert('Please enter both model name and model ID');
+    return;
+  }
+  
+  console.log('➕ Adding custom model:', name);
+  await addCustomModel(name, value);
+  
+  // Clear inputs
+  elements.openrouterCustomModelName.value = '';
+  elements.openrouterCustomModelValue.value = '';
+  
+  // Update UI
+  updateCustomModelsList();
+  populateOpenRouterModels();
+  
+  console.log('✅ Custom model added!');
+});
 
 // Send message with optional file
 async function sendMessage() {
@@ -289,8 +458,8 @@ async function sendMessage() {
     const onChunk = (chunk) => {
       if (!streamingMessageDiv) {
         // Remove typing indicator and create message element
-        removeTypingIndicator(typingId);
-        
+    removeTypingIndicator(typingId);
+
         streamingMessageDiv = document.createElement("div");
         streamingMessageDiv.className = "message assistant";
         
@@ -337,8 +506,8 @@ async function sendMessage() {
     // If not streaming (Gemini/OpenRouter), show response normally
     if (!streamingMessageDiv) {
       removeTypingIndicator(typingId);
-      addMessage("assistant", response);
-      addMessageToChat("assistant", response);
+    addMessage("assistant", response);
+    addMessageToChat("assistant", response);
     } else {
       // Add final response to chat history
       addMessageToChat("assistant", fullResponse);
@@ -350,15 +519,21 @@ async function sendMessage() {
     // 🔄 SYNC: Save to server and sync after AI response
     const updatedChatHist = getChatHistory();
     const chatId = getCurrentChatId();
-    if (updatedChatHist.length >= 2) {
+    
+    // Only save if we have both user and assistant messages (complete interaction)
+    const hasUser = updatedChatHist.some(msg => msg.role === 'user');
+    const hasAssistant = updatedChatHist.some(msg => msg.role === 'assistant');
+    
+    if (hasUser && hasAssistant && updatedChatHist.length >= 2) {
       console.log('💾 Saving chat to cache after AI response...');
       await saveChatToServer(chatId);
       
       // Sync to refresh sidebar
       await syncChatsWithServer();
       updateChatHistoryUI();
-      console.log('✅ Chat saved and synced!');
+      console.log('✅ Chat synchronization complete');
     } else {
+      console.log('⏳ Waiting for assistant response before saving - hasUser:', hasUser, 'hasAssistant:', hasAssistant);
       updateChatHistoryUI();
     }
   } catch (error) {
@@ -403,21 +578,17 @@ elements.messageInput.addEventListener("input", () => {
 });
 
 // New chat
-elements.newChatBtn.addEventListener("click", async () => {
+elements.newChatBtn.addEventListener("click", () => {
   console.log('📝 Creating new chat...');
   startNewChat();
   clearMessagesUI();
   saveChatToLocalStorage();
   
-  // 🔄 SYNC: Save new chat to cache immediately
-  const newChatId = getCurrentChatId();
-  await saveChatToServer(newChatId);
-  
-  // Sync to refresh sidebar
-  await syncChatsWithServer();
+  // Don't sync - chat will be saved after first AI response
+  // Sync only happens when AI responds, not on new chat creation
   updateChatHistoryUI();
   
-  console.log('✅ New chat created and synced!');
+  console.log('✅ New chat created!');
 });
 
 // Chat history item click
@@ -435,9 +606,9 @@ window.onChatHistoryItemClick = async (chatId) => {
   }
   
   if (chat) {
-    loadChat(chatId);
-    clearMessagesUI();
-    
+  loadChat(chatId);
+  clearMessagesUI();
+  
     if (chat.messages) {
       console.log(`✅ Loaded chat with ${chat.messages.length} messages`);
       chat.messages.forEach(msg => {
@@ -469,7 +640,7 @@ elements.settingsModal.addEventListener("click", (e) => {
 });
 
 // Save settings
-elements.saveSettingsBtn.addEventListener("click", () => {
+elements.saveSettingsBtn.addEventListener("click", async () => {
   const newSettings = {
     provider: elements.providerSelect.value,
     ollamaUrl: document.getElementById("ollamaUrl").value,
@@ -477,14 +648,16 @@ elements.saveSettingsBtn.addEventListener("click", () => {
     geminiApiKey: elements.geminiApiKeyInput.value,
     geminiModel: elements.geminiModelSelect.value,
     openrouterApiKey: elements.openrouterApiKeyInput.value,
-    openrouterModel: elements.openrouterModelInput.value,
+    openrouterModel: elements.openrouterModelSelect?.value || elements.openrouterModelInput.value,
     temperature: parseFloat(document.getElementById("temperature").value),
   };
   
-  saveSettings(newSettings);
+  console.log('💾 Saving settings...');
+  await saveSettings(newSettings);
   updateProviderUI();
   updateModelInfo();
   
+  console.log('✅ Settings saved!');
   elements.settingsModal.classList.remove("active");
 });
 
@@ -629,9 +802,9 @@ window.onLoadSavedChat = async (chatId) => {
     console.log(`✅ Loaded chat: ${chatData.title} (${chatData.messages?.length || 0} messages)`);
     
     if (chatData.messages) {
-      chatData.messages.forEach(msg => {
+    chatData.messages.forEach(msg => {
         addMessage(msg.role, msg.content, msg.fileData);
-      });
+    });
     }
     
     setCurrentChatId(chatData.id);
@@ -689,10 +862,16 @@ elements.toggleSidebarBtn.addEventListener("click", () => {
 // Mobile header buttons
 if (elements.mobileNewChatBtn) {
   elements.mobileNewChatBtn.addEventListener("click", () => {
+    console.log('📝 Creating new chat...');
     startNewChat();
     clearMessagesUI();
     saveChatToLocalStorage();
+    
+    // Don't sync - chat will be saved after first AI response
+    // Sync only happens when AI responds, not on new chat creation
     updateChatHistoryUI();
+    
+    console.log('✅ New chat created!');
   });
 }
 
