@@ -17,7 +17,7 @@ echo.
 echo ==================================================
 echo Initializing Web Chat Interface Server
 echo ==================================================
-echo Server URL: http://localhost:5001
+echo Server URL: http://localhost:5000
 echo Ollama URL: http://127.0.0.1:11434
 echo Cache Directory: %cd%\cache
 echo Project Directory: %cd%
