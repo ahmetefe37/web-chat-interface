@@ -8,61 +8,15 @@ set "CLONE_LOGFILE=clone.log"
 set "SETUP_LOGFILE=setup.log"
 set "SCRIPT_DIR=%cd%"
 set "REPO_URL=https://github.com/ahmetefe37/web-chat-interface.git"
-set "PROJECT_DIR=%SCRIPT_DIR%\web-chat-interface"
+set "PROJECT_DIR=%SCRIPT_DIR%"
 
 echo ==================================================>> "%MAIN_LOGFILE%"
 echo [%date% %time%] MAIN ORCHESTRATOR START >> "%MAIN_LOGFILE%"
 echo ==================================================>> "%MAIN_LOGFILE%"
 
-REM ========== STEP 1: GIT CLONE ==========
-echo.
+REM ============ NODE SETUP AND NPM INSTALL ===========
 echo ==================================================
-echo STEP 1: GIT CLONE
-echo ==================================================
-echo ==================================================>> "%CLONE_LOGFILE%"
-echo Starting new session: %date% %time%>> "%CLONE_LOGFILE%"
-echo ==================================================>> "%CLONE_LOGFILE%"
-
-echo Script directory: %SCRIPT_DIR%
-echo Project directory: %PROJECT_DIR%
-echo Repository: %REPO_URL%
-echo.
-echo ==================================================>> "%CLONE_LOGFILE%"
-echo Checking folder...>> "%CLONE_LOGFILE%"
-
-if exist "%PROJECT_DIR%" (
-	echo %PROJECT_DIR% already exists. Skipping clone.
-	echo %PROJECT_DIR% already exists.>>"%CLONE_LOGFILE%"
-	goto SKIP_CLONE
-)
-
-echo ==================================================>> "%CLONE_LOGFILE%"
-echo Starting git clone...>> "%CLONE_LOGFILE%"
-echo ==================================================>> "%CLONE_LOGFILE%"
-echo.
-
-git clone "%REPO_URL%" "%PROJECT_DIR%" >>"%CLONE_LOGFILE%" 2>&1
-if errorlevel 1 (
-	echo ERROR: Git clone failed
-	echo ERROR: Git clone failed>>"%CLONE_LOGFILE%"
-	echo.
-	type "%CLONE_LOGFILE%"
-	goto END
-)
-
-echo.
-echo ==================================================>> "%CLONE_LOGFILE%"
-echo Clone successful!>> "%CLONE_LOGFILE%"
-echo Clone successful.
-echo Project directory: %PROJECT_DIR%
-echo ==================================================>> "%CLONE_LOGFILE%"
-
-:SKIP_CLONE
-echo.
-
-REM ========== STEP 2: NODE SETUP AND NPM INSTALL ==========
-echo ==================================================
-echo STEP 2: NODE SETUP AND NPM INSTALL
+echo   NODE SETUP AND NPM INSTALL
 echo ==================================================
 echo ==================================================>> "%SETUP_LOGFILE%"
 echo [%date% %time%] START >> "%SETUP_LOGFILE%"
